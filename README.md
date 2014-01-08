@@ -26,12 +26,12 @@ __init__.py je vzorový základ pro plugin
 Bookfan.eu - hotovo, pøebráno z minulé vlny protože web spis nejede nez jede :(
 
 ##Plan:
-Databazeknih.cz - 50% 
-cbdb.cz - 0%               
-legie.cz - 0%
-baila.cz - 0%
-kdb.cz - 0%
-leganto.cz - 0%
-onlineknihovna.cz - 0%
-knihi.cz - 0%
-pitaval.cz - 0%
+- [ ] Databazeknih.cz - 50% 
+- [ ] cbdb.cz - 0%               
+- [ ] legie.cz - 0%
+- [ ] baila.cz - 0%
+- [ ] kdb.cz - 0%
+- [ ] leganto.cz - 0%
+- [ ] onlineknihovna.cz - 0%
+- [ ] knihi.cz - 0%
+- [ ] pitaval.cz - 0%
