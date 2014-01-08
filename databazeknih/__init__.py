@@ -15,7 +15,8 @@ __docformat__ = 'restructuredtext en'
 #   edice into tags    
 #   max processed books in serach - 0 = all
 #   parse year from actual publish year or first publish year
-#metadata - serie, edi
+#   parse short stories list and store it at end of comment
+#metadata - serie, povidka do tagu, list povidek u povidkovych knih -> do commentu
 #cover
 
 from calibre.ebooks.metadata.sources.base import Source
@@ -25,7 +26,7 @@ from calibre.utils.cleantext import clean_ascii_chars
 from calibre import as_unicode
 from lxml import etree
 from functools import partial
-import re,  datetime
+import re,  datetime,  os
 
 NAMESPACES={
     'x':"http://www.w3.org/1999/xhtml"
@@ -33,6 +34,9 @@ NAMESPACES={
 
 class Databaze_knih(Source):
     
+    #devel dir
+    devel_dir = 'D:\\tmp\\devel\\databazeknih'
+    devel = True
     
     #List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
     supported_platforms = ['windows', 'osx', 'linux']
@@ -133,6 +137,16 @@ class Databaze_knih(Source):
     #Returns:	
     #    None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30): 
+        
+        #devel
+        if self.devel:
+            for the_file in os.listdir(self.devel_dir):
+                file_path = os.path.join(self.devel_dir, the_file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    log.info(e)
     
         XPath = partial(etree.XPath,   namespaces=NAMESPACES)
         entry          = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
@@ -142,16 +156,19 @@ class Databaze_knih(Source):
         if not query:
             log.error('Insufficient metadata to construct query')
             return
-        log.info('Generated search URL %r'%query)
+        
         br = self.browser
         try:
+            log.info('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
                 
+            
+            #following block fix html, some people dont use html escape on every &...
             def fixHtml(obj):
                 return obj.group().replace('&','&amp;')
                 
             raw = re.sub('&.{3}[^;]',  fixHtml,  raw)
-            raw = raw.decode('utf-8', errors='replace')#.replace("&", "&amp;")
+            raw = raw.decode('utf-8', errors='replace')
             
         except Exception as e:
             log.exception('Failed to make identify query: %r'%query)
@@ -161,11 +178,12 @@ class Databaze_knih(Source):
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
             
-            logfile = open("D:\\dwnraw.html", "w")
-            try:
-                logfile.write(clean)
-            finally:
-                logfile.close()
+            if self.devel:
+                logfile = open(self.devel_dir + "\\search.html", "w")
+                try:
+                    logfile.write(clean)
+                finally:
+                    logfile.close()
             
             feed = etree.fromstring(clean,  parser=parser)
             if len(parser.error_log) > 0: #some errors while parsing
@@ -212,35 +230,35 @@ class Databaze_knih(Source):
         number = int(entry.split('-')[-1])
         queryMoreInfo = 'http://www.databazeknih.cz/helpful/ajax/more_binfo.php?bid=%d'%number
         
-        log.info('download page %s'%query)
-        log.info('download page detail %s'%queryMoreInfo)
-
         br = self.browser
         try:
+            log.info('download page detail %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
         except Exception as e:
             log.exception('Failed to make download : %r'%query)
             return as_unicode(e)
             
         try:
+            log.info('download page moreinfo %s'%queryMoreInfo)
             rawMoreInfo = br.open(queryMoreInfo, timeout=timeout).read().strip()
             #fixed - ajax request in not valid XML
             rawMoreInfo = '<html>'+ rawMoreInfo+ '</html>'
         except Exception as e:
             log.exception('Failed to make download : %r'%queryMoreInfo)
             return as_unicode(e)
-            
-        logfile = open("D:\\dwnrawb.html", "w")
-        try:
-            logfile.write(raw)
-        finally:
-            logfile.close()
         
-        logfile = open("D:\\dwnrawbd.html", "w")
-        try:
-            logfile.write(rawMoreInfo)
-        finally:
-            logfile.close()
+        if self.devel:
+            logfile = open("%s\\%s-detail.html"%(self.devel_dir, number), "w")
+            try:
+                logfile.write(raw)
+            finally:
+                logfile.close()
+            
+            logfile = open("%s\\%s-moreInfo.html"%(self.devel_dir, number), "w")
+            try:
+                logfile.write(rawMoreInfo)
+            finally:
+                logfile.close()
         
         XPath = partial(etree.XPath,   namespaces=NAMESPACES)
         title = XPath('//x:h1[@class="justbname"]/text()')
@@ -251,8 +269,12 @@ class Databaze_knih(Source):
         publisher = XPath('//span[@itemprop="brand"]/a/text()')
         pub_year_act = XPath('//x:p[@class="binfo odtop"]/x:strong[2]/text()')
         pub_year_first = XPath('//strong[1]/text()')
-        isbn = XPath('//strong[3]/span/text()')
+        isbn = XPath('//strong[last()]/span/text()')
         site_tags = XPath('//x:p[@class="binfo"][2]/x:a/@title')
+        edition = XPath('//a[starts-with(@href, "edice/")]/text()')
+        serie = XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
+        
+        serie_ = serieIndex_ = None
         
         parser = etree.XMLParser(recover=True)
         clean = clean_ascii_chars(raw)
@@ -264,7 +286,6 @@ class Databaze_knih(Source):
         title_ = title(feed)[0]
         authors_ = authors(feed)
         comments_ = "".join(comment(feed)[0].xpath("text()"))
-        #TODO fix xpath, ne 3. ale posledni strong
         isbn_ = isbn(moreInfo)[0]
         publisher_ = publisher(moreInfo)[0]
         
@@ -281,6 +302,37 @@ class Databaze_knih(Source):
         pub_year_ = pub_year_act(feed)[0]
         #pub_year_ = pub_year_first(moreInfo)[0]
         
+        #TODO settings edice to tags
+        edition_ = edition(moreInfo)
+        if len(edition_) > 0:
+            tags_.extend({edition_[0]})
+        
+        serie_tag = serie(feed)
+        if len(serie_tag) > 0:
+            serie_ = serie_tag[0].text
+            
+            #load number in serie, next HTTP rquest :(
+            querySerie = 'http://www.databazeknih.cz/%s'%serie_tag[0].attrib["href"]
+            try:
+                log.info('download page with serie %s'%querySerie)
+                rawSerie = br.open(querySerie, timeout=timeout).read().strip()
+            except Exception as e:
+                log.exception('Failed to make download : %r'%queryMoreInfo)
+                return as_unicode(e)
+                
+            if self.devel:
+                logfile = open("%s\\%s-serie.html"%(self.devel_dir, number), "w")
+                try:
+                    logfile.write(rawSerie)
+                finally:
+                    logfile.close()
+            
+            clean = clean_ascii_chars(rawSerie)
+            serieXml = etree.fromstring(clean,  parser=parser)
+            
+            serieIndex = XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%entry)
+            serieIndex_ = serieIndex(serieXml)[0]
+        
         mi = Metadata(title_, authors_)
         mi.languages = {'ces'}
         mi.comments = comments_
@@ -290,6 +342,8 @@ class Databaze_knih(Source):
         mi.publisher = publisher_
         mi.pubdate = self.prepare_date(int(pub_year_))
         mi.isbn = isbn_
+        mi.series = serie_
+        mi.seriesIndex = serieIndex_
         
         return mi
         
@@ -319,29 +373,29 @@ def dump(var,  indent = 0):
     return val
 
 if __name__ == '__main__': # tests
-    # To run these test use:
-    # calibre-debug -e __init__.py
+    # To run these test setup calibre library (that inner which contains  calibre-debug)
+    # and run run.bat
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
     test_identify_plugin(Databaze_knih.name,
         [
-#            (               
-#                {'identifiers':{'bookfan1': '83502'}, #serie
-#                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-#                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-#            )
+            (               
+                {'identifiers':{'bookfan1': '83502'}, #basic
+                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
+            )
 #            , 
 #            (               
-#                {'identifiers':{'bookfan1': '83502'}, #serie
+#                {'identifiers':{'bookfan1': '83502'}, #edice
 #                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
 #                [title_test('Zlodějka knih', exact=False)]
 #            )
 #            , 
-            (               
-                {'identifiers':{'bookfan1': '83502'}, #serie
-                'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-                [title_test('Hra o trůny', exact=False)]
-            )
+#            (               
+#                {'identifiers':{'bookfan1': '83502'}, #serie
+#                'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+#                [title_test('Hra o trůny', exact=False)]
+#            )
         ])
 
 

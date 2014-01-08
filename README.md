@@ -22,8 +22,8 @@ Každý adresáø pøedstavuje jeden plugin
 Je možno sputit jeho test pøes run.bat
 __init__.py je vzorový základ pro plugin
 
-##Hotovo:
-Bookfan.eu - hotovo, pøebráno z minulé vlny protože web spis nejede nez jede :(
+##Hotovo z minula:
+Bookfan.eu - web spis nejede nez jede :(
 
 ##Plan:
 - [ ] Databazeknih.cz - 50% 

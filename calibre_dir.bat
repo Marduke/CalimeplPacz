@@ -1,4 +1,4 @@
 ::@Echo Off
-set calibre_path="..\..\Calibre"
+set calibre_path="D:\knihovna\Calibre"
 
 set PATH=%PATH%;%calibre_path%
