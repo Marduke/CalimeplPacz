@@ -16,7 +16,7 @@ __docformat__ = 'restructuredtext en'
 #   max processed books in serach - 0 = all
 #   parse year from actual publish year or first publish year
 #   parse short stories list and store it at end of comment
-#metadata - serie, povidka do tagu, list povidek u povidkovych knih -> do commentu
+#metadata - serie, povidka do tagu
 #cover
 
 from calibre.ebooks.metadata.sources.base import Source
@@ -26,6 +26,7 @@ from calibre.utils.cleantext import clean_ascii_chars
 from calibre import as_unicode
 from lxml import etree
 from functools import partial
+from UserString import MutableString
 import re,  datetime,  os
 
 NAMESPACES={
@@ -228,7 +229,7 @@ class Databaze_knih(Source):
     def parse_entry(self,  log, timeout,  entry):
         query = 'http://www.databazeknih.cz/%s'%entry
         number = int(entry.split('-')[-1])
-        queryMoreInfo = 'http://www.databazeknih.cz/helpful/ajax/more_binfo.php?bid=%d'%number
+        query_moreInfo = 'http://www.databazeknih.cz/helpful/ajax/more_binfo.php?bid=%d'%number
         
         br = self.browser
         try:
@@ -239,12 +240,12 @@ class Databaze_knih(Source):
             return as_unicode(e)
             
         try:
-            log.info('download page moreinfo %s'%queryMoreInfo)
-            rawMoreInfo = br.open(queryMoreInfo, timeout=timeout).read().strip()
+            log.info('download page moreinfo %s'%query_moreInfo)
+            raw_moreInfo = br.open(query_moreInfo, timeout=timeout).read().strip()
             #fixed - ajax request in not valid XML
-            rawMoreInfo = '<html>'+ rawMoreInfo+ '</html>'
+            raw_moreInfo = '<html>'+ raw_moreInfo+ '</html>'
         except Exception as e:
-            log.exception('Failed to make download : %r'%queryMoreInfo)
+            log.exception('Failed to make download : %r'%query_moreInfo)
             return as_unicode(e)
         
         if self.devel:
@@ -256,7 +257,7 @@ class Databaze_knih(Source):
             
             logfile = open("%s\\%s-moreInfo.html"%(self.devel_dir, number), "w")
             try:
-                logfile.write(rawMoreInfo)
+                logfile.write(raw_moreInfo)
             finally:
                 logfile.close()
         
@@ -273,14 +274,18 @@ class Databaze_knih(Source):
         site_tags = XPath('//x:p[@class="binfo"][2]/x:a/@title')
         edition = XPath('//a[starts-with(@href, "edice/")]/text()')
         serie = XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
+        short_stories_url = XPath('//x:a[starts-with(@href, "povidky-z-knihy/")]/@href')
+        short_stories_list = XPath('//x:table//x:a/@title')
         
-        serie_ = serieIndex_ = None
+        #init metadata
+        comments_ = rating_ = serie_ = isbn_ = publisher_ = tags_= serieIndex_ = None
+        pub_year_ = 0
         
         parser = etree.XMLParser(recover=True)
         clean = clean_ascii_chars(raw)
         feed = etree.fromstring(clean,  parser=parser)
         
-        clean = clean_ascii_chars(rawMoreInfo)
+        clean = clean_ascii_chars(raw_moreInfo)
         moreInfo = etree.fromstring(clean,  parser=parser)
         
         title_ = title(feed)[0]
@@ -307,27 +312,63 @@ class Databaze_knih(Source):
         if len(edition_) > 0:
             tags_.extend({edition_[0]})
         
+        #TODO short stories list
+        short_url = short_stories_url(feed)
+        if len(short_url) > 0:
+            
+            query_short_stories = 'http://www.databazeknih.cz/%s'%short_url[0]
+            try:
+                log.info('download page with short stories list %s'%query_short_stories)
+                raw_stories = br.open(query_short_stories, timeout=timeout).read().strip()
+            except Exception as e:
+                log.exception('Failed to make download : %r'%query_short_stories)
+                return as_unicode(e)
+                
+            
+            if self.devel:
+                logfile = open("%s\\%s-stories.html"%(self.devel_dir, number), "w")
+                try:
+                    logfile.write(raw_stories)
+                finally:
+                    logfile.close()
+            
+            clean = clean_ascii_chars(raw_stories)
+            storiesXml = etree.fromstring(clean,  parser=parser)
+            if len(parser.error_log) > 0: #some errors while parsing
+                log.info('while parsing page occus some errors:')
+                log.info(parser.error_log)
+            
+            stories_ = short_stories_list(storiesXml)
+
+            out_str = MutableString()
+            out_str += "<p>Seznam povídek<br/>"
+            for story in stories_:
+                out_str += story
+                out_str += "<br/>"
+            out_str += "</p>"
+            comments_ += out_str
+        
         serie_tag = serie(feed)
         if len(serie_tag) > 0:
             serie_ = serie_tag[0].text
             
             #load number in serie, next HTTP rquest :(
-            querySerie = 'http://www.databazeknih.cz/%s'%serie_tag[0].attrib["href"]
+            query_serie = 'http://www.databazeknih.cz/%s'%serie_tag[0].attrib["href"]
             try:
-                log.info('download page with serie %s'%querySerie)
-                rawSerie = br.open(querySerie, timeout=timeout).read().strip()
+                log.info('download page with serie %s'%query_serie)
+                raw_serie = br.open(query_serie, timeout=timeout).read().strip()
             except Exception as e:
-                log.exception('Failed to make download : %r'%queryMoreInfo)
+                log.exception('Failed to make download : %r'%query_serie)
                 return as_unicode(e)
                 
             if self.devel:
                 logfile = open("%s\\%s-serie.html"%(self.devel_dir, number), "w")
                 try:
-                    logfile.write(rawSerie)
+                    logfile.write(raw_serie)
                 finally:
                     logfile.close()
             
-            clean = clean_ascii_chars(rawSerie)
+            clean = clean_ascii_chars(raw_serie)
             serieXml = etree.fromstring(clean,  parser=parser)
             
             serieIndex = XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%entry)
