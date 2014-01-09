@@ -17,8 +17,9 @@ __docformat__ = 'restructuredtext en'
 #   parse year from actual publish year or first publish year
 #   parse short stories list and store it at end of comment
 #   for short stories parse list of book which include it and add it and end of comment
-#metadata - knihy v nichz se povidka nachazi
 #cover
+#most relevant matches failed - fix!!!
+#worker parsing
 
 from calibre.ebooks.metadata.sources.base import Source
 from calibre.ebooks.metadata.book.base import Metadata
@@ -260,6 +261,7 @@ class Databaze_knih(Source):
         serie = XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
         short_stories_url = XPath('//x:a[starts-with(@href, "povidky-z-knihy/")]/@href')
         short_stories_list = XPath('//x:table//x:a/@title')
+        books_contains = XPath('//x:a[@class="h2" and starts-with(@href,"knihy/")]/text()')
         
         #init metadata
         comments_ = rating_ = serie_ = isbn_ = publisher_ = tags_= serieIndex_ = None
@@ -317,6 +319,19 @@ class Databaze_knih(Source):
                 tags_.append('Povídka')
             else:
                 tags_ = {'Povídka'}
+            
+            book_list_parse = books_contains(feed)
+            if len(book_list_parse) > 0:
+                out_str = MutableString()
+                out_str += "<p>Seznam knih ve kterých se povídka vyskytuje:<br/>"
+                for book in book_list_parse:
+                    out_str += book
+                    out_str += "<br/>"
+                out_str += "</p>"
+                if comments_ is None:
+                    comments_ = out_str
+                else:
+                    comments_ += out_str
         
         #TODO short stories list
         short_url = short_stories_url(feed)
@@ -341,7 +356,7 @@ class Databaze_knih(Source):
             stories_ = short_stories_list(storiesXml)
 
             out_str = MutableString()
-            out_str += "<p>Seznam povídek<br/>"
+            out_str += "<p>Seznam povídek:<br/>"
             for story in stories_:
                 out_str += story
                 out_str += "<br/>"
@@ -373,8 +388,6 @@ class Databaze_knih(Source):
             
             serieIndex = XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%entry)
             serieIndex_ = serieIndex(serieXml)[0]
-        
-        log.info(pub_year_)
         
         if pub_year_ == 0:
             pub_year_ = self.prepare_date(1970)
