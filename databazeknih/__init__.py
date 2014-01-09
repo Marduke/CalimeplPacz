@@ -16,7 +16,8 @@ __docformat__ = 'restructuredtext en'
 #   max processed books in serach - 0 = all
 #   parse year from actual publish year or first publish year
 #   parse short stories list and store it at end of comment
-#metadata - serie, povidka do tagu
+#   for short stories parse list of book which include it and add it and end of comment
+#metadata - knihy v nichz se povidka nachazi
 #cover
 
 from calibre.ebooks.metadata.sources.base import Source
@@ -139,18 +140,11 @@ class Databaze_knih(Source):
     #    None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30): 
         
-        #devel
-        if self.devel:
-            for the_file in os.listdir(self.devel_dir):
-                file_path = os.path.join(self.devel_dir, the_file)
-                try:
-                    if os.path.isfile(file_path):
-                        os.unlink(file_path)
-                except Exception as e:
-                    log.info(e)
+        self.devel_clear()
     
         XPath = partial(etree.XPath,   namespaces=NAMESPACES)
-        entry          = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
+        entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
+        story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
 
         query = self.create_query(log, title=title, authors=authors,
                 identifiers=identifiers)
@@ -179,12 +173,7 @@ class Databaze_knih(Source):
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
             
-            if self.devel:
-                logfile = open(self.devel_dir + "\\search.html", "w")
-                try:
-                    logfile.write(clean)
-                finally:
-                    logfile.close()
+            self.devel_log('','search',  clean)
             
             feed = etree.fromstring(clean,  parser=parser)
             if len(parser.error_log) > 0: #some errors while parsing
@@ -196,6 +185,11 @@ class Databaze_knih(Source):
                 if detail != None:
                     result_queue.put(detail)
             
+            stories = story(feed)
+            for sto in stories:
+                detail = self.parse_entry(log, timeout, sto)
+                if detail != None:
+                    result_queue.put(detail)
 
         except Exception as e:
             log.exception('Failed to parse identify results')
@@ -248,21 +242,11 @@ class Databaze_knih(Source):
             log.exception('Failed to make download : %r'%query_moreInfo)
             return as_unicode(e)
         
-        if self.devel:
-            logfile = open("%s\\%s-detail.html"%(self.devel_dir, number), "w")
-            try:
-                logfile.write(raw)
-            finally:
-                logfile.close()
-            
-            logfile = open("%s\\%s-moreInfo.html"%(self.devel_dir, number), "w")
-            try:
-                logfile.write(raw_moreInfo)
-            finally:
-                logfile.close()
+        self.devel_log(number, 'detail',  raw)
+        self.devel_log(number, 'moreInfo',  raw_moreInfo)
         
         XPath = partial(etree.XPath,   namespaces=NAMESPACES)
-        title = XPath('//x:h1[@class="justbname"]/text()')
+        title = XPath('//x:h1[contains(@class,"name")]/text()')
         authors = XPath('//x:h2[@class="jmenaautoru"]/x:a/@title')
         comment = XPath('//x:p[@id="biall"]')
         stars = XPath('//x:a[@class="bpoints"]/text()')
@@ -290,32 +274,53 @@ class Databaze_knih(Source):
         
         title_ = title(feed)[0]
         authors_ = authors(feed)
-        comments_ = "".join(comment(feed)[0].xpath("text()"))
-        isbn_ = isbn(moreInfo)[0]
-        publisher_ = publisher(moreInfo)[0]
         
-        stars_ = int(stars(feed)[0].replace('%',''))
-        rating_ = int(stars_ / 20)
-        if stars_ % 20 > 0:
-            rating_ += 1
+        comment_parse = comment(feed)
+        if len(comment_parse) > 0:
+            comments_ = "".join(comment_parse[0].xpath("text()"))
         
-        tags_ = tags(feed)[0].split(' - ')
-        #TODO add this also?
-        tags_.extend(site_tags(feed))
+        isbn_parse = isbn(moreInfo)
+        if len(isbn_parse) > 0:
+            isbn_ = isbn_parse[0]
         
-        #TODO switch to right source
-        pub_year_ = pub_year_act(feed)[0]
-        #pub_year_ = pub_year_first(moreInfo)[0]
+        publisher_parse = publisher(moreInfo)
+        if len(publisher_parse) > 0:
+            publisher_ = publisher_parse[0]
+        
+        stars_parse = stars(feed)
+        if len(stars_parse) > 0:
+            stars_ = int(stars_parse[0].replace('%',''))
+            rating_ = int(stars_ / 20)
+            if stars_ % 20 > 0:
+                rating_ += 1
+        
+        tags_parse = tags(feed)
+        if len(tags_parse) > 0:
+            tags_ = tags(feed)[0].split(' - ')
+            #TODO add this also?
+            tags_.extend(site_tags(feed))
+        
+        #TODO settings, switch to right source
+        pub_year_parse = pub_year_act(feed)
+        #pub_year_parse = pub_year_first(moreInfo)
+        if len(pub_year_parse) > 0:
+            pub_year_ =  self.prepare_date(int(pub_year_parse[0]))
         
         #TODO settings edice to tags
         edition_ = edition(moreInfo)
         if len(edition_) > 0:
             tags_.extend({edition_[0]})
+            
+        #TODO settings short stoty to tag
+        if entry.startswith('povidky/'):
+            if tags_ is not None:
+                tags_.append('Povídka')
+            else:
+                tags_ = {'Povídka'}
         
         #TODO short stories list
         short_url = short_stories_url(feed)
         if len(short_url) > 0:
-            
             query_short_stories = 'http://www.databazeknih.cz/%s'%short_url[0]
             try:
                 log.info('download page with short stories list %s'%query_short_stories)
@@ -325,12 +330,7 @@ class Databaze_knih(Source):
                 return as_unicode(e)
                 
             
-            if self.devel:
-                logfile = open("%s\\%s-stories.html"%(self.devel_dir, number), "w")
-                try:
-                    logfile.write(raw_stories)
-                finally:
-                    logfile.close()
+            self.devel_log(number,'stories',  raw_stories)
             
             clean = clean_ascii_chars(raw_stories)
             storiesXml = etree.fromstring(clean,  parser=parser)
@@ -374,6 +374,11 @@ class Databaze_knih(Source):
             serieIndex = XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%entry)
             serieIndex_ = serieIndex(serieXml)[0]
         
+        log.info(pub_year_)
+        
+        if pub_year_ == 0:
+            pub_year_ = self.prepare_date(1970)
+        
         mi = Metadata(title_, authors_)
         mi.languages = {'ces'}
         mi.comments = comments_
@@ -381,7 +386,7 @@ class Databaze_knih(Source):
         mi.rating = rating_
         mi.tags = tags_
         mi.publisher = publisher_
-        mi.pubdate = self.prepare_date(int(pub_year_))
+        mi.pubdate = pub_year_
         mi.isbn = isbn_
         mi.series = serie_
         mi.seriesIndex = serieIndex_
@@ -391,6 +396,26 @@ class Databaze_knih(Source):
     def prepare_date(self,year):
         from calibre.utils.date import utc_tz
         return datetime.datetime(year, 1, 1, tzinfo=utc_tz)
+        
+    def devel_clear(self):
+        #devel
+        if self.devel:
+            for the_file in os.listdir(self.devel_dir):
+                file_path = os.path.join(self.devel_dir, the_file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    log.info(e)
+        
+    
+    def devel_log(self, id, name, data):
+        if self.devel:
+            logfile = open("%s\\%s-%s.html"%(self.devel_dir, id, name), "w")
+            try:
+                logfile.write(data)
+            finally:
+                logfile.close()
 
 def dump(var,  indent = 0):
     ind = ''
@@ -420,11 +445,11 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Databaze_knih.name,
         [
-            (               
-                {'identifiers':{'bookfan1': '83502'}, #basic
-                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-            )
+#            (               
+#                {'identifiers':{'bookfan1': '83502'}, #basic
+#                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+#                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
+#            )
 #            , 
 #            (               
 #                {'identifiers':{'bookfan1': '83502'}, #edice
@@ -437,6 +462,12 @@ if __name__ == '__main__': # tests
 #                'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
 #                [title_test('Hra o trůny', exact=False)]
 #            )
+#            ,
+            (               
+                {'identifiers':{'bookfan1': '83502'}, #short story
+                'title': 'Absolon', 'authors':['Henry Kuttner']},
+                [title_test('Absolon', exact=False)]
+            )
         ])
 
 
