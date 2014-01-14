@@ -24,6 +24,7 @@ from calibre import as_unicode
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
+from Queue import Queue, Empty
 from databazeknih.worker import Worker #REPLACE from calibre_plugins.databaze_knih.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.databaze_knih.devel import Devel
 
@@ -63,7 +64,7 @@ class Databaze_knih(Source):
     can_be_disabled = True
 
     #Set of capabilities supported by this plugin. Useful capabilities are: ‘identify’, ‘cover’
-    capabilities = frozenset(['identify'])#, 'cover'])
+    capabilities = frozenset(['identify', 'cover'])
 
     #List of metadata fields that can potentially be download by this plugin during the identify phase
     touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:databaze_knih', 'languages'])
@@ -89,11 +90,6 @@ class Databaze_knih(Source):
     #If set to True covers downloaded by this plugin are automatically trimmed.
     auto_trim_covers = False
 
-    #Return cached cover URL for the book identified by the identifiers dict or None if no such URL exists.
-    #Note that this method must only return validated URLs, i.e. not URLS that could result in a generic cover image or a not found error.
-    def get_cached_cover_url(self,  identifiers):
-        return None
-
     #Identify a book by its title/author/isbn/etc.
     #If identifiers(s) are specified and no match is found and this metadata source does not store all related identifiers (for example, all ISBNs of a book), this method should retry with just the title and author (assuming they were specified).
     #If this metadata source also provides covers, the URL to the cover should be cached so that a subsequent call to the get covers API with the same ISBN/special identifier does not need to get the cover URL again. Use the caching API for this.
@@ -112,6 +108,7 @@ class Databaze_knih(Source):
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30):
 
         self.devel.setLog(log)
+        found = []
 
         XPath = partial(etree.XPath, namespaces=NAMESPACES)
         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
@@ -150,13 +147,16 @@ class Databaze_knih(Source):
                 log.info('while parsing page occus some errors:')
                 log.info(parser.error_log)
 
-            matches = []
             #Books
-            matches.extend(entry(feed))
+            found.extend(entry(feed))
             #Short stories
-            matches.extend(story(feed))
+            found.extend(story(feed))
+        except Exception as e:
+            log.exception('Failed to parse identify results')
+            return as_unicode(e)
 
-            workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(matches)]
+        try:
+            workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -172,11 +172,8 @@ class Databaze_knih(Source):
                         a_worker_is_alive = True
                 if not a_worker_is_alive:
                     break
-
-
         except Exception as e:
-            log.exception('Failed to parse identify results')
-            return as_unicode(e)
+            log.error(e)
 
         return None
 
@@ -194,12 +191,52 @@ class Databaze_knih(Source):
         return self.BASE_URL+'search?'+urlencode({
             'q':q
         })
+
+    #Return cached cover URL for the book identified by the identifiers dict or None if no such URL exists.
+    #Note that this method must only return validated URLs, i.e. not URLS that could result in a generic cover image or a not found error.
+    def get_cached_cover_url(self, identifiers):
+        url = None
+        ident = identifiers.get(self.name, None)
+        if ident is not None:
+            url = self.cached_identifier_to_cover_url(ident)
+        return url
+
     #Download a cover and put it into result_queue. The parameters all have the same meaning as for identify(). Put (self, cover_data) into result_queue.
     #This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
     #If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
     def download_cover(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30, get_best_cover=False):
-        #TODO: cover
-        return None
+        cached_url = self.get_cached_cover_url(identifiers)
+        if cached_url is None:
+            log.info('No cached cover found, running identify')
+            rq = Queue()
+            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
+            if abort.is_set():
+                return
+            results = []
+            while True:
+                try:
+                    results.append(rq.get_nowait())
+                except Empty:
+                    break
+            results.sort(key=self.identify_results_keygen(
+                title=title, authors=authors, identifiers=identifiers))
+            for mi in results:
+                cached_url = self.get_cached_cover_url(mi.identifiers)
+                if cached_url is not None:
+                    break
+        if cached_url is None:
+            log.info('No cover found')
+            return
+
+        if abort.is_set():
+            return
+        br = self.browser
+        log('Downloading cover from:', cached_url)
+        try:
+            cdata = br.open_novisit(cached_url, timeout=timeout).read()
+            result_queue.put((self, cdata))
+        except:
+            log.exception('Failed to download cover from:', cached_url)
 
 if __name__ == '__main__': # tests
     # To run these test setup calibre library (that inner which contains  calibre-debug)

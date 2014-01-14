@@ -24,7 +24,7 @@ class BookFan(Source):
 
     name                    = 'BookFan'
     description             = _('Downloads metadata and covers from BookFan.info (only books in Czech)')
-    author                  = 'Martin Miksl'
+    author                  = 'MarDuke'
     version                 = (1, 0, 1)
     minimum_calibre_version = (0, 9, 9)
 

@@ -66,6 +66,7 @@ class Worker(Thread):
         tags = self.parse_tags(xml_detail, xml_more_info)
         serie, serie_index = self.parse_serie(xml_detail)
         pub_year = self.parse_pub_year(xml_detail, xml_more_info)
+        cover = self.parse_cover(xml_detail)
 
         if title is not None and authors is not None:
             mi = Metadata(title, authors)
@@ -79,6 +80,10 @@ class Worker(Thread):
             mi.isbn = isbn
             mi.series = serie
             mi.seriesIndex = serie_index
+            mi.cover_url = cover
+
+            if cover:
+                self.plugin.cache_identifier_to_cover_url(self.ident, cover)
 
             return mi
 
@@ -231,6 +236,16 @@ class Worker(Thread):
         else:
             self.log('Found pub_date:None')
             return self.prepare_date(1970)
+
+    def parse_cover(self, xml_detail):
+        cover = self.XPath('//x:img[@class="kniha_img"]/@src')
+        tmp = cover(xml_detail)
+        if len(tmp) > 0:
+            self.log('Found cover:%s'%tmp[0])
+            return tmp[0]
+        else:
+            self.log('Found cover:None')
+            return None
 
     def download_detail(self):
         query = self.plugin.BASE_URL + self.ident

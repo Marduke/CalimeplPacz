@@ -28,7 +28,7 @@ Jelikož píšu v Pydev tak mi pøi více souborech v pluginu hlásí prostøedí neznámé
 Bookfan.eu - web spis nejede nez jede :(
 
 ##Plan:
-- [ ] Databazeknih.cz - 75% 
+- [ ] Databazeknih.cz - 80% 
 - [ ] cbdb.cz - 0%               
 - [ ] legie.cz - 0%
 - [ ] baila.cz - 0%
