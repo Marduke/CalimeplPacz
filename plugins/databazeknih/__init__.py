@@ -7,7 +7,6 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-#TODO: check id
 #TODO: settings - add to short story tag?
 #TODO: settings - parse tags and categories OR only categs - may spam tags
 #TODO: settings - edice into tags
@@ -110,6 +109,11 @@ class Databaze_knih(Source):
         self.devel.setLog(log)
         found = []
 
+        #test previous found first
+        ident = identifiers.get(self.name, None)
+        if ident.startswith('knihy/') or ident.startswith('povidky/'):
+            found.append(ident)
+
         XPath = partial(etree.XPath, namespaces=NAMESPACES)
         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
         story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
@@ -154,6 +158,11 @@ class Databaze_knih(Source):
         except Exception as e:
             log.exception('Failed to parse identify results')
             return as_unicode(e)
+
+        #remove duplicity
+        copy = found[:]
+        for value in set(copy):
+            found.remove(value)
 
         try:
             workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
