@@ -16,6 +16,7 @@ __docformat__ = 'restructuredtext en'
 #TODO: settings - parse short stories list and store it at end of comment
 #TODO: settings - for short stories parse list of book which include it and add it and end of comment
 
+import re, time
 from calibre.ebooks.metadata.sources.base import Source
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.utils.cleantext import clean_ascii_chars
@@ -23,9 +24,8 @@ from calibre import as_unicode
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
-import re, time
-from calibre_plugins.databaze_knih.worker import Worker
-from calibre_plugins.databaze_knih.devel import Devel
+from databazeknih.worker import Worker #REPLACE from calibre_plugins.databaze_knih.worker import Worker
+from devel import Devel #REPLACE from calibre_plugins.databaze_knih.devel import Devel
 
 NAMESPACES={
     'x':"http://www.w3.org/1999/xhtml"

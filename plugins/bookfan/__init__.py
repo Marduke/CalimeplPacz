@@ -4,7 +4,7 @@ from __future__ import (unicode_literals, division, absolute_import,
                         print_function)
 
 __license__   = 'GPL v3'
-__copyright__ = '2012, Martin Miksl <marduke@centrum.cz>'
+__copyright__ = '2012, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
 import time, re, HTMLParser
@@ -29,7 +29,7 @@ class BookFan(Source):
     minimum_calibre_version = (0, 9, 9)
 
     capabilities = frozenset(['identify', 'cover'])
-    touched_fields = frozenset(['title', 'authors', 'identifier:bookfan', 'comments', 'rating', 'series', 
+    touched_fields = frozenset(['title', 'authors', 'identifier:bookfan', 'comments', 'rating', 'series',
                                 'identifier:isbn', 'publisher', 'pubdate', 'series_index', 'tags', 'language'])
     has_html_comments = True
     supports_gzip_transfer_encoding = True
@@ -48,7 +48,7 @@ class BookFan(Source):
         if ff_id is not None:
             url = self.cached_identifier_to_cover_url(ff_id)
         return url
-    
+
     def create_title_query(self, log, title=None):
         q = ''
         if title:
@@ -141,19 +141,19 @@ class BookFan(Source):
 
         title_tokens = list(self.get_title_tokens(orig_title))
         max_results = 20
-        
+
         res_path = root.xpath('//a[@class="title"]/@href')
-        
+
         if res_path:
             for url in res_path:
-                log.info('Book search')                
-                    
+                log.info('Book search')
+
                 group = url.split('/')
                 id = group[2]
                 log.info('id found %s'%id)
                 title = group[3].replace('-', ' ')
                 log.info('title found %s'%title)
-                    
+
                 if not id:
                     log.error('book id not found')
                 elif not ismatch(orig_title):
@@ -212,7 +212,7 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test, isbn_test)
     test_identify_plugin(BookFan.name,
         [
-         
+
 #            ( # A book with no id specified
 #                {'title':"Poslední obyvatel z planety Zwor", 'authors':['Jean-pierre Garen']},
 #                [title_test("Poslední obyvatel z planety Zwor",
@@ -237,37 +237,37 @@ if __name__ == '__main__': # tests
 
  #           ),
 
-#             (               
+#             (
 #                {'identifiers':{'bookfan1': '83502'}, #serie
 #                'title': 'Lux Perpetua', 'authors':['Andrzej Sapkowski']},
 #                [title_test('Lux Perpetua', exact=False)]
 #             )
-  
-#             (               
+
+#             (
 #                {'identifiers':{'bookfan1': '83502'}, #serie
 #                'title': 'Jeho království', 'authors':['Mika Waltari']},
 #                [title_test('Jeho království', exact=False)]
 #             )
-             
-             (               
+
+             (
                 {'identifiers':{'bookfan1': '83502'}, #serie
                 'title': 'Uvnitř vesmírných lodí', 'authors':['George Adamski']},
                 [title_test('Uvnitř vesmírných lodí', exact=False)]
              )
-              
-#             (               
+
+#             (
 #                {'identifiers':{'bookfan1': '83502'}, #serie
 #                'title': 'Seržant', 'authors':['Miroslav Žamboch']},
 #                [title_test('Seržant', exact=False)]
 #             )
-             
-#             (               
+
+#             (
 #                {'identifiers':{'bookfan': '83502'}, #serie
 #                'title': 'Lux Perpetua', 'authors':['Andrzej Sapkowski']},
 #                [title_test('Lux Perpetua', exact=False)]
 #             )
-             
-#             (               
+
+#             (
 #                {'identifiers':{'bookfan': '122339'}, #
 #                'title': 'Adam stvořitel', 'authors':['Josef Čapek','Karel Čapek']},
 #                [title_test('Adam stvořitel', exact=False)]
