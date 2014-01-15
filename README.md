@@ -28,8 +28,8 @@ Jelikož píšu v Pydev tak mi pøi více souborech v pluginu hlásí prostøedí neznámé
 Bookfan.eu
 
 ##Plan:
-- [ ] Databazeknih.cz - 90% 
-- [ ] cbdb.cz - 0%               
+- [x] Databazeknih.cz - 90% - chybi configurace
+- [ ] cbdb.cz - 5%
 - [ ] legie.cz - 0%
 - [ ] baila.cz - 0%
 - [ ] kdb.cz - 0%
@@ -47,7 +47,7 @@ Bookfan.eu
 ### Databazeknih
 - obalka (pouze 100x166 - 100x171)
 - série
-- rozlišení povídky od knihy, pokud je detekována povídka je pøidán tag Povídka 
+- rozlišení povídky od knihy, pokud je detekována povídka je pøidán tag Povídka
 - tagy serveru(neplést s kategoriemi, server to rozlišuje) se pøidávají do tagù knihy ke kategoriím
 - výpis povídek a tag Sbírka povídek pokud se jedná o povídkovou sbírku
 - výpis knih ve kterých se kniha nachází pokud se jedná o povídku
