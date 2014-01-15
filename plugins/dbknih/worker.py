@@ -69,7 +69,7 @@ class Worker(Thread):
         #in broswer = page and ajax call for more info
         xml_detail = self.download_detail()
         xml_more_info = self.download_moreinfo()
-        if xml_detail and xml_more_info:
+        if xml_detail is not None and xml_more_info is not None:
             try:
                 self.result_queue.put(self.parse(xml_detail, xml_more_info))
             except Exception as e:
@@ -107,6 +107,8 @@ class Worker(Thread):
                 self.plugin.cache_identifier_to_cover_url(self.ident, cover)
 
             return mi
+        else:
+            return None
 
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
