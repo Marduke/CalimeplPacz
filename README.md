@@ -45,11 +45,11 @@ Bookfan.eu - web spis nejede nez jede :(
 - kategorie == tagy
 
 ### Databazeknih
-- obalka (pouze 100x166)
+- obalka (pouze 100x166 - 100x171)
 - série
-- rozlišení povídky od knihy
+- rozlišení povídky od knihy, pokud je detekována povídka je pøidán tag Povídka 
 - tagy serveru(neplést s kategoriemi, server to rozlišuje) se pøidávají do tagù knihy ke kategoriím
-- výpis povídek pokud se jedná o povídkovou sbírku
+- výpis povídek a tag Sbírka povídek pokud se jedná o povídkovou sbírku
 - výpis knih ve kterých se kniha nachází pokud se jedná o povídku
 - rok vydání a prvního vydání
 - edice se pøidává mezitagy

@@ -7,6 +7,7 @@ __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
 from threading import Thread
+from calibre import as_unicode
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
@@ -42,7 +43,28 @@ class Worker(Thread):
         self.number = int(self.ident.split('-')[-1])
         self.XPath = partial(etree.XPath, namespaces=NAMESPACES)
 
+    def initXPath(self):
+        self.xpath_title = self.XPath('//x:h1[contains(@class,"name")]/text()')
+        self.xpath_authors = self.XPath('//x:h2[@class="jmenaautoru"]/x:a/@title')
+        self.xpath_comments = self.XPath('//x:p[@id="biall"]')
+        self.xpath_books_contains = self.XPath('//x:a[@class="h2" and starts-with(@href,"knihy/")]/text()')
+        self.xpath_short_stories_url = self.XPath('//x:a[starts-with(@href, "povidky-z-knihy/")]/@href')
+        self.xpath_short_stories_list = self.XPath('//x:table//x:a/@title')
+        self.xpath_stars = self.XPath('//x:a[@class="bpoints"]/text()')
+        self.xpath_isbn = self.XPath('//strong[last()]/span/text()')
+        self.xpath_publisher = self.XPath('//span[@itemprop="brand"]/a/text()')
+        self.xpath_tags = self.XPath('//x:span[@itemprop="category"]/text()')
+        self.xpath_site_tags = self.XPath('//x:p[@class="binfo"][2]/x:a/@title')
+        self.xpath_edition = self.XPath('//a[starts-with(@href, "edice/")]/text()')
+        self.xpath_serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
+        self.xpath_serie_index = self.XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%self.ident)
+        self.xpath_pub_year_act = self.XPath('//x:p[@class="binfo odtop"]/x:strong[2]/text()')
+        self.xpath_pub_year_first = self.XPath('//strong[1]/text()')
+        self.xpath_cover = self.XPath('//x:img[@class="kniha_img"]/@src')
+
+
     def run(self):
+        self.initXPath()
         #detail page has two parts
         #in broswer = page and ajax call for more info
         xml_detail = self.download_detail()
@@ -70,7 +92,7 @@ class Worker(Thread):
         if title is not None and authors is not None:
             mi = Metadata(title, authors)
             mi.languages = {'ces'}
-            mi.comments = comments
+            mi.comments = as_unicode(comments)
             mi.identifiers = {self.plugin.name:self.ident}
             mi.rating = rating
             mi.tags = tags
@@ -87,8 +109,7 @@ class Worker(Thread):
             return mi
 
     def parse_title(self, xml_detail):
-        title = self.XPath('//x:h1[contains(@class,"name")]/text()')
-        tmp = title(xml_detail)
+        tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
             self.log('Found title:%s'%tmp[0])
             return tmp[0]
@@ -97,8 +118,7 @@ class Worker(Thread):
             return None
 
     def parse_authors(self, xml_detail):
-        authors = self.XPath('//x:h2[@class="jmenaautoru"]/x:a/@title')
-        tmp = authors(xml_detail)
+        tmp = self.xpath_authors(xml_detail)
         if len(tmp) > 0:
             self.log('Found authors:%s'%tmp)
             return tmp
@@ -107,17 +127,13 @@ class Worker(Thread):
             return None
 
     def parse_comments(self, xml_detail):
-        comments = self.XPath('//x:p[@id="biall"]')
-        books_contains = self.XPath('//x:a[@class="h2" and starts-with(@href,"knihy/")]/text()')
-        short_stories_url = self.XPath('//x:a[starts-with(@href, "povidky-z-knihy/")]/@href')
-        short_stories_list = self.XPath('//x:table//x:a/@title')
-        tmp = comments(xml_detail)
+        tmp = self.xpath_comments(xml_detail)
 
         result = MutableString()
         if len(tmp) > 0:
             result += "".join(tmp[0].xpath("text()"))
 
-        tmp = books_contains(xml_detail)
+        tmp = self.xpath_books_contains(xml_detail)
         if len(tmp) > 0:
             result += "<p>Seznam knih ve kterých se povídka vyskytuje:<br/>"
             for book in tmp:
@@ -125,10 +141,10 @@ class Worker(Thread):
                 result += "<br/>"
             result += "</p>"
 
-        tmp = short_stories_url(xml_detail)
+        tmp = self.xpath_short_stories_url(xml_detail)
         if len(tmp) > 0:
             xml_story_list = self.download_short_story_list(tmp[0])
-            tmp2 = short_stories_list(xml_story_list)
+            tmp2 = self.xpath_short_stories_list(xml_story_list)
 
             result += "<p>Seznam povídek:<br/>"
             for story in tmp2:
@@ -144,8 +160,7 @@ class Worker(Thread):
             return None
 
     def parse_rating(self, xml_detail):
-        stars = self.XPath('//x:a[@class="bpoints"]/text()')
-        tmp = stars(xml_detail)
+        tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
             stars_ = int(tmp[0].replace('%',''))
             rating = int(stars_ / 20)
@@ -158,8 +173,7 @@ class Worker(Thread):
             return None
 
     def parse_isbn(self, xml_more_info):
-        isbn = self.XPath('//strong[last()]/span/text()')
-        tmp = isbn(xml_more_info)
+        tmp = self.xpath_isbn(xml_more_info)
         if len(tmp) > 0:
             self.log('Found ISBN:%s'%tmp[0])
             return tmp[0]
@@ -168,8 +182,7 @@ class Worker(Thread):
             return None
 
     def parse_publisher(self, xml_more_info):
-        publisher = self.XPath('//span[@itemprop="brand"]/a/text()')
-        tmp = publisher(xml_more_info)
+        tmp = self.xpath_publisher(xml_more_info)
         if len(tmp) > 0:
             self.log('Found publisher:%s'%tmp[0])
             return tmp[0]
@@ -178,17 +191,13 @@ class Worker(Thread):
             return None
 
     def parse_tags(self, xml_detail, xml_more_info):
-        tags = self.XPath('//x:span[@itemprop="category"]/text()')
-        site_tags = self.XPath('//x:p[@class="binfo"][2]/x:a/@title')
-        edition = self.XPath('//a[starts-with(@href, "edice/")]/text()')
-
         result = []
 
-        tmp = tags(xml_detail)
+        tmp = self.xpath_tags(xml_detail)
         if len(tmp) > 0:
             result.extend(tmp[0].split(' - '))
             #TODO: add this also? to settings
-            tmp2 = site_tags(xml_more_info)
+            tmp2 = self.xpath_site_tags(xml_more_info)
             if len(tmp2) > 0:
                 result.extend(tmp2)
 
@@ -196,8 +205,13 @@ class Worker(Thread):
         if self.ident.startswith('povidky/'):
             result.append('Povídka')
 
+        #TODO: settings Sbírka povídek tag
+        tmp = self.xpath_short_stories_url(xml_detail)
+        if len(tmp) > 0:
+            result.append('Sbírka povídek')
+
         #TODO: settings edice to tags
-        tmp = edition(xml_more_info)
+        tmp = self.xpath_edition(xml_more_info)
         if len(tmp) > 0:
             result.append(tmp[0])
 
@@ -205,17 +219,15 @@ class Worker(Thread):
         return result
 
     def parse_serie(self, xml_detail):
-        serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
-        tmp = serie(xml_detail)
+        tmp = self.xpath_serie(xml_detail)
 
         if len(tmp) == 0:
             self.log('Found serie:None')
             return [None, None]
 
         xml_serie_index = self.download_serie_index(tmp[0].get('href'))
-        serie_index = self.XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%self.ident)
-        if serie_index:
-            tmp_index = serie_index(xml_serie_index)
+        if self.xpath_serie_index:
+            tmp_index = self.xpath_serie_index(xml_serie_index)
             if len(tmp_index) > 0:
                 self.log('Found serie:%s[%s]'%(tmp[0].text,tmp_index[0]))
                 return [tmp[0], tmp_index[0]]
@@ -226,10 +238,8 @@ class Worker(Thread):
             return [tmp[0], None]
 
     def parse_pub_year(self, xml_detail, xml_more_info):
-        pub_year_act = self.XPath('//x:p[@class="binfo odtop"]/x:strong[2]/text()')
-        pub_year_first = self.XPath('//strong[1]/text()')
         #TODO: settings, switch to right source
-        tmp = pub_year_act(xml_detail)
+        tmp = self.xpath_pub_year_act(xml_detail)
         #tmp = pub_year_first(xml_more_info)
         if len(tmp) > 0:
             res = self.prepare_date(int(tmp[0]))
@@ -240,8 +250,7 @@ class Worker(Thread):
             return self.prepare_date(1970)
 
     def parse_cover(self, xml_detail):
-        cover = self.XPath('//x:img[@class="kniha_img"]/@src')
-        tmp = cover(xml_detail)
+        tmp = self.xpath_cover(xml_detail)
         if len(tmp) > 0:
             self.log('Found cover:%s'%tmp[0])
             return tmp[0]

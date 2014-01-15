@@ -273,10 +273,16 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #short story
+#                 'title': 'Absolon', 'authors':['Henry Kuttner']},
+#                 [title_test('Absolon', exact=False)]
+#             )
+#             ,
             (
-                {'identifiers':{'bookfan1': '83502'}, #short story
-                'title': 'Absolon', 'authors':['Henry Kuttner']},
-                [title_test('Absolon', exact=False)]
+                {'identifiers':{}, #short story
+                'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
+                [title_test('Dilvermoon', exact=False)]
             )
         ])
 
