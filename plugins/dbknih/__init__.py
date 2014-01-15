@@ -24,17 +24,17 @@ from lxml import etree
 from lxml.html import fromstring
 from functools import partial
 from Queue import Queue, Empty
-from databazeknih.worker import Worker #REPLACE from calibre_plugins.databaze_knih.worker import Worker
-from devel import Devel #REPLACE from calibre_plugins.databaze_knih.devel import Devel
+from dbknih.worker import Worker #REPLACE from calibre_plugins.dbknih.worker import Worker
+from devel import Devel #REPLACE from calibre_plugins.dbknih.devel import Devel
 
 NAMESPACES={
     'x':"http://www.w3.org/1999/xhtml"
 }
 
-class Databaze_knih(Source):
+class Dbknih(Source):
 
     #devel dir
-    devel = Devel(r'D:\tmp\devel\databazeknih', True)
+    devel = Devel(r'D:\tmp\devel\dbknih', True)
 
     #List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
     supported_platforms = ['windows', 'osx', 'linux']
@@ -42,7 +42,7 @@ class Databaze_knih(Source):
     BASE_URL = 'http://www.databazeknih.cz/'
 
     #The name of this plugin. You must set it something other than Trivial Plugin for it to work.
-    name = 'databaze_knih'
+    name = 'dbknih'
 
     #The version of this plugin as a 3-tuple (major, minor, revision)
     version = (1, 0, 0)
@@ -66,7 +66,7 @@ class Databaze_knih(Source):
     capabilities = frozenset(['identify', 'cover'])
 
     #List of metadata fields that can potentially be download by this plugin during the identify phase
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:databaze_knih', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:dbknih', 'languages'])
 
     #Set this to True if your plugin returns HTML formatted comments
     has_html_comments = False
@@ -111,8 +111,9 @@ class Databaze_knih(Source):
 
         #test previous found first
         ident = identifiers.get(self.name, None)
-        if ident.startswith('knihy/') or ident.startswith('povidky/'):
-            found.append(ident)
+        if ident:
+            if ident.startswith('knihy/') or ident.startswith('povidky/'):
+                found.append(ident)
 
         XPath = partial(etree.XPath, namespaces=NAMESPACES)
         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
@@ -144,7 +145,7 @@ class Databaze_knih(Source):
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
 
-            self.devel.log_file('','search1',  clean)
+            self.devel.log_file('','search',  clean)
 
             feed = fromstring(clean,  parser=parser)
             if len(parser.error_log) > 0: #some errors while parsing
@@ -160,9 +161,9 @@ class Databaze_knih(Source):
             return as_unicode(e)
 
         #remove duplicity
-        copy = found[:]
-        for value in set(copy):
-            found.remove(value)
+#         copy = found[:]
+#         for value in set(copy):
+#             found.remove(value)
 
         try:
             workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
@@ -252,13 +253,13 @@ if __name__ == '__main__': # tests
     # and run run.bat
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
-    test_identify_plugin(Databaze_knih.name,
+    test_identify_plugin(Dbknih.name,
         [
-            (
-                {'identifiers':{'bookfan1': '83502'}, #basic
-                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #basic
+#                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+#                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
+#             )
 #            ,
 #            (
 #                {'identifiers':{'bookfan1': '83502'}, #edice
@@ -266,17 +267,17 @@ if __name__ == '__main__': # tests
 #                [title_test('Zlodějka knih', exact=False)]
 #            )
 #            ,
-#            (
-#                {'identifiers':{'bookfan1': '83502'}, #serie
-#                'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-#                [title_test('Hra o trůny', exact=False)]
-#            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #serie
+#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+#                 [title_test('Hra o trůny', exact=False)]
+#             )
 #            ,
-#            (
-#                {'identifiers':{'bookfan1': '83502'}, #short story
-#                'title': 'Absolon', 'authors':['Henry Kuttner']},
-#                [title_test('Absolon', exact=False)]
-#            )
+            (
+                {'identifiers':{'bookfan1': '83502'}, #short story
+                'title': 'Absolon', 'authors':['Henry Kuttner']},
+                [title_test('Absolon', exact=False)]
+            )
         ])
 
 

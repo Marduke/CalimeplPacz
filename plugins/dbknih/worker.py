@@ -7,7 +7,6 @@ __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
 from threading import Thread
-from calibre import as_unicode
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
@@ -36,7 +35,7 @@ class Worker(Thread):
         self.daemon = True
         self.ident, self.result_queue = ident, result_queue
         self.browser = browser.clone_browser()
-        self.log, self.relevance = log, relevance
+        self.logger, self.relevance = log, relevance
         self.plugin, self.timeout = plugin, timeout
         self.cover_url = self.isbn = None
         self.devel = devel
@@ -48,11 +47,11 @@ class Worker(Thread):
         #in broswer = page and ajax call for more info
         xml_detail = self.download_detail()
         xml_more_info = self.download_moreinfo()
-        if xml_detail is not None and xml_more_info is not None:
+        if xml_detail and xml_more_info:
             try:
                 self.result_queue.put(self.parse(xml_detail, xml_more_info))
             except Exception as e:
-                self.log.exception(e)
+                self.logexception(e)
         else:
             self.log('Download metadata failed for: %r'%self.ident)
 
@@ -213,14 +212,17 @@ class Worker(Thread):
             self.log('Found serie:None')
             return [None, None]
 
-        xml_serie_index = self.download_serie_index(tmp[0].text())
+        xml_serie_index = self.download_serie_index(tmp[0].get('href'))
         serie_index = self.XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%self.ident)
-        tmp_index = serie_index(xml_serie_index)
-        if len(tmp_index) > 0:
-            self.log('Found serie:%s[%s]'%(tmp[0],tmp_index[0]))
-            return [tmp[0], tmp_index[0]]
+        if serie_index:
+            tmp_index = serie_index(xml_serie_index)
+            if len(tmp_index) > 0:
+                self.log('Found serie:%s[%s]'%(tmp[0].text,tmp_index[0]))
+                return [tmp[0], tmp_index[0]]
+            else:
+                self.log('Found serie:%s[None]'%tmp[0].text)
+                return [tmp[0], None]
         else:
-            self.log('Found serie:%s[None]'%tmp[0])
             return [tmp[0], None]
 
     def parse_pub_year(self, xml_detail, xml_more_info):
@@ -251,7 +253,7 @@ class Worker(Thread):
         query = self.plugin.BASE_URL + self.ident
         br = self.browser
         try:
-            self.log.info('download page detail %s'%query)
+            self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
             self.devel.log_file(self.number, 'detail',  data)
 
@@ -260,13 +262,13 @@ class Worker(Thread):
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
-            self.log.exception('Failed to make download : %r'%query)
-            return as_unicode(e)
+            self.logexception('Failed to make download : %r'%query)
+            return None
 
     def download_moreinfo(self):
-        query_more_info = 'http://www.databazeknih.cz/helpful/ajax/more_binfo.php?bid=%d'%self.number
+        query_more_info = '%shelpful/ajax/more_binfo.php?bid=%d'%(self.plugin.BASE_URL, self.number)
         try:
-            self.log.info('download page moreinfo %s'%query_more_info)
+            self.log('download page moreinfo %s'%query_more_info)
             data = self.browser.open(query_more_info, timeout=self.timeout).read().strip()
             #fix - ajax request in not valid XML
             data = '<html>%s</html>'%data
@@ -277,13 +279,13 @@ class Worker(Thread):
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
-            self.log.exception('Failed to make download : %r'%query_more_info)
-            return as_unicode(e)
+            self.logexception('Failed to make download : %r'%query_more_info)
+            return None
 
     def download_short_story_list(self, url):
-        query_short_stories = 'http://www.databazeknih.cz/%s'%url
+        query_short_stories = self.plugin.BASE_URL + url
         try:
-            self.log.info('download page with short stories list %s'%query_short_stories)
+            self.log('download page with short stories list %s'%query_short_stories)
             data = self.browser.open(query_short_stories, timeout=self.timeout).read().strip()
             self.devel.log_file(self.number,'stories',  data)
 
@@ -292,13 +294,13 @@ class Worker(Thread):
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
-            self.log.exception('Failed to make download : %r'%query_short_stories)
-            return as_unicode(e)
+            self.logexception('Failed to make download : %r'%query_short_stories)
+            return None
 
     def download_serie_index(self, url):
-        query_serie = 'http://www.databazeknih.cz/%s'%url
+        query_serie = self.plugin.BASE_URL + url
         try:
-            self.log.info('download page with serie %s'%query_serie)
+            self.log('download page with serie %s'%query_serie)
             data = self.browser.open(query_serie, timeout=self.timeout).read().strip()
             self.devel.log_file(self.number, 'serie_index',  data)
 
@@ -307,8 +309,17 @@ class Worker(Thread):
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
-            self.log.exception('Failed to make download : %r'%query_serie)
-            return as_unicode(e)
+            self.logexception('Failed to make download : %r'%query_serie)
+            return None
+
+    def log(self, param):
+        self.logger.info('%s - %s'%(self.number, param))
+
+    def logerror(self, param):
+        self.logger.error('%s - %s'%(self.number, param))
+
+    def logexception(self, param):
+        self.logger.exception('%s - %s'%(self.number, param))
 
     def prepare_date(self,year):
         from calibre.utils.date import utc_tz

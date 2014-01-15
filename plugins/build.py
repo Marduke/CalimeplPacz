@@ -25,7 +25,7 @@ def copyfile(src_file, out_file):
 if __name__ == '__main__':
     name = None
     directory = None
-    temp_directory = "tmp"
+    temp_directory = "..\\tmp"
 
     if len(sys.argv) == 2:
         directory = name = sys.argv[1]

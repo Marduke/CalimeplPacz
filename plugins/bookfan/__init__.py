@@ -18,6 +18,7 @@ from calibre.ebooks.metadata.sources.base import Source
 from calibre.utils.icu import lower
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre.utils.localization import get_udc
+from bookfan.worker import Worker #REPLACE from calibre_plugins.bookfan.worker import Worker
 
 
 class BookFan(Source):
@@ -105,7 +106,6 @@ class BookFan(Source):
             log.error('No matches found with query: %r'%query)
             return
 
-        from calibre_plugins.bookfan.worker import Worker
         author_tokens = list(self.get_author_tokens(authors))
         workers = [Worker(url, author_tokens, result_queue, br, log, i, self) for i, url in
                 enumerate(matches)]
