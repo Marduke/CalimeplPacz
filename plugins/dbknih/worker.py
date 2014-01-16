@@ -16,12 +16,6 @@ from functools import partial
 from UserString import MutableString
 import datetime
 
-NAMESPACES={
-    'x':"http://www.w3.org/1999/xhtml"
-}
-
-#TODO: most relevant matches failed - fix!!! - relevance
-
 #Single Thread to process one page of searched list
 class Worker(Thread):
 
@@ -41,7 +35,7 @@ class Worker(Thread):
         self.cover_url = self.isbn = None
         self.devel = devel
         self.number = int(self.ident.split('-')[-1])
-        self.XPath = partial(etree.XPath, namespaces=NAMESPACES)
+        self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
 
     def initXPath(self):
         self.xpath_title = self.XPath('//x:h1[contains(@class,"name")]/text()')
@@ -158,7 +152,7 @@ class Worker(Thread):
             self.log('Found comment:%s'%result)
             return result
         else:
-            self.log('Found authors:None')
+            self.log('Found comment:None')
             return None
 
     def parse_rating(self, xml_detail):

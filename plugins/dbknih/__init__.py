@@ -27,10 +27,6 @@ from Queue import Queue, Empty
 from dbknih.worker import Worker #REPLACE from calibre_plugins.dbknih.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.dbknih.devel import Devel
 
-NAMESPACES={
-    'x':"http://www.w3.org/1999/xhtml"
-}
-
 # Comparing Metadata objects for relevance {{{
 words = ("the", "a", "an", "of", "and")
 prefix_pat = re.compile(r'^(%s)\s+'%("|".join(words)))
@@ -47,6 +43,10 @@ def cleanup_title(s):
     return s.strip()
 
 class Dbknih(Source):
+
+    NAMESPACES={
+        'x':"http://www.w3.org/1999/xhtml"
+    }
 
     '''
     devel dir
@@ -170,7 +170,7 @@ class Dbknih(Source):
             if not (ident.startswith('knihy/') or ident.startswith('povidky/')):
                 ident = None
 
-        XPath = partial(etree.XPath, namespaces=NAMESPACES)
+        XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
         story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
 

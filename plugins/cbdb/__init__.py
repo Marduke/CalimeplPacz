@@ -27,10 +27,6 @@ from Queue import Queue, Empty
 from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.cbdb.devel import Devel
 
-NAMESPACES={
-    'x':"http://www.w3.org/1999/xhtml"
-}
-
 # Comparing Metadata objects for relevance {{{
 words = ("the", "a", "an", "of", "and")
 prefix_pat = re.compile(r'^(%s)\s+'%("|".join(words)))
@@ -48,10 +44,14 @@ def cleanup_title(s):
 
 class Cbdb(Source):
 
+    NAMESPACES={
+        'x':"http://www.w3.org/1999/xhtml"
+    }
+
     '''
     devel dir
     '''
-    devel = Devel(r'E:\tmp\devel\cbdb', True)
+    devel = Devel(r'D:\tmp\devel\cbdb', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -163,15 +163,15 @@ class Cbdb(Source):
 
         self.devel.setLog(log)
         found = []
+        xml = None
+        detail_ident = None
 
         #test previous found first
         ident = identifiers.get(self.name, None)
-        if ident:
-            if not (ident.startswith('kniha-')):
-                ident = None
 
-        XPath = partial(etree.XPath, namespaces=NAMESPACES)
-        entry = XPath('//x:div[@class="content_box_content"]//x:a[starts-with(@href, "kniha-")]/@href')
+        XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
+        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]//x:a[starts-with(@href, "kniha-")]/@href')
+        detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
 
         query = self.create_query(log, title=title, authors=authors,
                 identifiers=identifiers)
@@ -183,14 +183,6 @@ class Cbdb(Source):
         try:
             log.info('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
-
-            #following block fix html, some people dont use html escape on every &...
-            def fixHtml(obj):
-                return obj.group().replace('&','&amp;')
-
-            raw = re.sub('&.{3}[^;]',  fixHtml,  raw)
-            raw = raw.decode('utf-8', errors='replace')
-
         except Exception as e:
             log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
@@ -201,14 +193,22 @@ class Cbdb(Source):
 
             self.devel.log_file('','search',  clean)
 
-            feed = fromstring(clean,  parser=parser)
+            feed = fromstring(clean, parser=parser)
             if len(parser.error_log) > 0: #some errors while parsing
                 log.info('while parsing page occus some errors:')
                 log.info(parser.error_log)
 
-            for book in entry(feed):
-                if book != ident:
-                    found.append(book)
+            entries = entry(feed)
+            if len(entries) == 0:
+                xml = feed
+                detail_ident = detail_test(feed)[0].split("-")[-1]
+                if ident is not None and detail_ident != ident:
+                    found.append(ident)
+            else:
+                for book in entries:
+                    if book != ident:
+                        found.append(book)
+
         except Exception as e:
             log.exception('Failed to parse identify results')
             return as_unicode(e)
@@ -217,8 +217,17 @@ class Cbdb(Source):
             found.remove(ident)
             found.insert(0, ident)
 
+        matches = len(found)
+        if xml is not None:
+            matches += 1
+
+        log.info('Found %i matches'%matches)
+
         try:
-            workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
+            #if redirect push to worker actual parsed xml, no need to download and parse it again
+            if xml is not None:
+                workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml, self.devel)]
+            workers += [Worker(ident, result_queue, br, log, i, self, None, self.devel) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -464,15 +473,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
-#             (
-#                 {'identifiers':{'dbknih': 'povidky/carovny-svet-henry-kuttnera-2882/absolon-11582'}, #short story
-#                 'title': 'Absolon', 'authors':['Henry Kuttner']},
-#                 [title_test('Absolon', exact=False)]
-#             )
-#             ,
             (
                 {'identifiers':{}, #short story
-                'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
-                [title_test('Dilvermoon', exact=False)]
+                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+                [title_test('Meč osudu', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
+#                 [title_test('Dilvermoon', exact=False)]
+#             )
         ])
