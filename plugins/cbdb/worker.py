@@ -53,7 +53,7 @@ class Worker(Thread):
 #         self.xpath_edition = self.XPath('//a[starts-with(@href, "edice/")]/text()')
 #         self.xpath_serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
 #         self.xpath_serie_index = self.XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%self.ident)
-        self.xpath_cover = self.XPath('//x:div[@id="covers_in"]/x:img/@src')
+        self.xpath_cover = self.XPath('//x:td[@id="book_covers"]/x:div/x:img/@src')
 
 
     def run(self):
@@ -204,15 +204,18 @@ class Worker(Thread):
         tmp = self.xpath_cover(xml_detail)
         result = []
         if len(tmp) > 0:
+            self.log(tmp)
             for cover in tmp:
+                self.log(cover)
                 ident = cover.split("=")[-1]
+                self.log(ident)
                 result.append('http://www.cbdb.cz/books/%s.jpg'%ident)
         if len(result) > 0:
-            self.log('Found covers:None')
-            return None
-        else:
             self.log('Found covers:%s'%result)
             return result
+        else:
+            self.log('Found covers:None')
+            return None
 
     def download_detail(self):
         query = self.plugin.BASE_URL + self.ident

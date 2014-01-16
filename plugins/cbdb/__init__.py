@@ -16,12 +16,13 @@ __docformat__ = 'restructuredtext en'
 #TODO: settings - for short stories parse list of book which include it and add it and end of comment
 
 import re, time
-from calibre.ebooks.metadata.sources.base import Source
+from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre import as_unicode
 from lxml import etree
 from lxml.html import fromstring
+from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
 from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
@@ -51,7 +52,7 @@ class Cbdb(Source):
     '''
     devel dir
     '''
-    devel = Devel(r'D:\tmp\devel\cbdb', True)
+    devel = Devel(r'E:\tmp\devel\cbdb', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -125,7 +126,21 @@ class Cbdb(Source):
     '''
     A list of Option objects. They will be used to automatically construct the configuration widget for this plugin
     '''
-    options = ()
+    options = (Option('max_covers', 'number', 5, _('Maximum number of covers to get'),
+                      _('The maximum number of covers to process from the google search result')),
+               Option('size', 'choices', 'svga', _('Cover size'),
+                      _('Search for covers larger than the specified size'),
+                      choices=OrderedDict((
+                          ('any', _('Any size'),),
+                          ('l', _('Large'),),
+                          ('qsvga', _('Larger than %s')%'400x300',),
+                          ('vga', _('Larger than %s')%'640x480',),
+                          ('svga', _('Larger than %s')%'600x800',),
+                          ('xga', _('Larger than %s')%'1024x768',),
+                          ('2mp', _('Larger than %s')%'2 MP',),
+                          ('4mp', _('Larger than %s')%'4 MP',),
+                      ))),
+    )
 
     '''
     A string that is displayed at the top of the config widget for this plugin
@@ -282,38 +297,42 @@ class Cbdb(Source):
     If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
     '''
     def download_cover(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30, get_best_cover=False):
-        cached_url = self.get_cached_cover_url(identifiers)
-        if cached_url is None:
-            log.info('No cached cover found, running identify')
-            rq = Queue()
-            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
-            if abort.is_set():
-                return
-            results = []
-            while True:
-                try:
-                    results.append(rq.get_nowait())
-                except Empty:
-                    break
-            results.sort(key=self.identify_results_keygen(
-                title=title, authors=authors, identifiers=identifiers))
-            for mi in results:
-                cached_url = self.get_cached_cover_url(mi.identifiers)
-                if cached_url is not None:
-                    break
-        if cached_url is None:
-            log.info('No cover found')
+        cached_urls = self.get_cached_cover_url(identifiers)
+        if not title:
             return
+        self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
 
-        if abort.is_set():
-            return
-        br = self.browser
-        log('Downloading cover from:', cached_url)
-        try:
-            cdata = br.open_novisit(cached_url, timeout=timeout).read()
-            result_queue.put((self, cdata))
-        except:
-            log.exception('Failed to download cover from:', cached_url)
+#         if cached_url is None:
+#             log.info('No cached cover found, running identify')
+#             rq = Queue()
+#             self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
+#             if abort.is_set():
+#                 return
+#             results = []
+#             while True:
+#                 try:
+#                     results.append(rq.get_nowait())
+#                 except Empty:
+#                     break
+#             results.sort(key=self.identify_results_keygen(
+#                 title=title, authors=authors, identifiers=identifiers))
+#             for mi in results:
+#                 cached_url = self.get_cached_cover_url(mi.identifiers)
+#                 if cached_url is not None:
+#                     break
+#         if cached_url is None:
+#             log.info('No cover found')
+#             return
+#
+#         if abort.is_set():
+#             return
+#         br = self.browser
+#         log('Downloading cover from:', cached_url)
+#         try:
+#             cdata = br.open_novisit(cached_url, timeout=timeout).read()
+#             result_queue.put((self, cdata))
+#         except:
+#             log.exception('Failed to download cover from:', cached_url)
 
 
     '''
