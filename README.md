@@ -28,8 +28,8 @@ Jelikož píšu v Pydev tak mi pøi více souborech v pluginu hlásí prostøedí neznámé
 Bookfan.eu
 
 ##Plan:
-- [x] Databazeknih.cz - 90%
-- [x] cbdb.cz - 90%
+- [x] Databazeknih.cz - 100% v1.0.0
+- [x] cbdb.cz - 100% v1.0.0
 - [ ] legie.cz - 0%
 - [ ] baila.cz - 0%
 - [ ] kdb.cz - 0%
@@ -61,4 +61,4 @@ pozn.: 90% => chybí configurace
 ### Cbdb
 - obálka cca 141x210 a obèas vìtší
 - pokud je více obálek vrací dle max_cover option, výchozí hodnota je 5 
-- série index je experimentální
+- série index je nespolehlivý, je udáván pouze seøezený seznam knih v sérii

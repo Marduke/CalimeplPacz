@@ -7,16 +7,11 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-#TODO: settings - add to short story tag?
-#TODO: settings - parse tags and categories OR only categs - may spam tags
-#TODO: settings - edice into tags
-#TODO: settings - max processed books in serach - 0 = all
-#TODO: settings - parse year from actual publish year or first publish year
 #TODO: settings - parse short stories list and store it at end of comment
 #TODO: settings - for short stories parse list of book which include it and add it and end of comment
 
 import re, time
-from calibre.ebooks.metadata.sources.base import Source
+from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre import as_unicode
@@ -111,7 +106,36 @@ class Dbknih(Source):
     '''
     A list of Option objects. They will be used to automatically construct the configuration widget for this plugin
     '''
-    options = ()
+    options = (
+               Option("edition", 'bool', True,
+                      "přidávat edici do tagů",
+                      "Pokud bude u knihy/povídky nalezena edice bude přidána k tagům"),
+
+               Option("short_story", 'bool', True,
+                      "přidávat povídku do tagů",
+                      "Pokud bude zjištěno že se jedná o povídku, bude tag Povídka přidán k tagům"),
+
+               Option("short_story_collection", 'bool', True,
+                      "přidávat sbírku povídek do tagů",
+                      "Pokud bude zjištěno že se sbírku povídek, bude tag Sbírka povídek přidán k tagům"),
+
+               Option("pub_date", 'choices', "Poslední datum vydání",
+                      "Použít datum vydání",
+                      "Server nabízí tyto dvě možnosti datumu vydání",
+                       ["Poslední datum vydání", "První datum vydání"]),
+
+               Option("parse_tags", 'bool', True,
+                      "přidávat tagy serveru do tagů",
+                      "Dbknih má na rozdíl od Calibre kategorie, ty tvoří základ tagů, toto nastavení umožnoje přidat i tagy dbknih"),
+
+               Option("add_short_story_list", 'bool', True,
+                      "přidávat seznam povídek",
+                      "u sbírek povídek přidávat na konec popisu seznam povídek"),
+
+               Option("add_mother_book_list", 'bool', True,
+                      "přidávat seznam sbírek povídek",
+                      "u povídek přidávat na konec popisu seznam sbírek povídek, ve kterých vyšla"),
+    )
 
     '''
     A string that is displayed at the top of the config widget for this plugin
@@ -350,22 +374,22 @@ if __name__ == '__main__': # tests
     test_identify_plugin(Dbknih.name,
         [
 #             (
-#                 {'identifiers':{'bookfan1': '83502'}, #basic
+#                 {'identifiers':{'bookfan1': '83502'}, #basic, edice
 #                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
 #                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
 #             )
 #            ,
-#            (
-#                {'identifiers':{'bookfan1': '83502'}, #edice
-#                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-#                [title_test('Zlodějka knih', exact=False)]
-#            )
-#            ,
 #             (
-#                 {'identifiers':{'bookfan1': '83502'}, #serie
-#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-#                 [title_test('Hra o trůny', exact=False)]
+#                 {'identifiers':{'bookfan1': '83502'}, #server tags
+#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                 [title_test('Zlodějka knih', exact=False)]
 #             )
+#            ,
+            (
+                {'identifiers':{'bookfan1': '83502'}, #serie
+                'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+                [title_test('Hra o trůny', exact=False)]
+            )
 #            ,
 #             (
 #                 {'identifiers':{'dbknih': 'povidky/carovny-svet-henry-kuttnera-2882/absolon-11582'}, #short story

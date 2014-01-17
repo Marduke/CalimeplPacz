@@ -7,14 +7,6 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-#TODO: settings - add to short story tag?
-#TODO: settings - parse tags and categories OR only categs - may spam tags
-#TODO: settings - edice into tags
-#TODO: settings - max processed books in serach - 0 = all
-#TODO: settings - parse year from actual publish year or first publish year
-#TODO: settings - parse short stories list and store it at end of comment
-#TODO: settings - for short stories parse list of book which include it and add it and end of comment
-
 import re, time
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
@@ -112,20 +104,13 @@ class Cbdb(Source):
     '''
     A list of Option objects. They will be used to automatically construct the configuration widget for this plugin
     '''
-    options = (Option('max_covers', 'number', 5, _('Maximum number of covers to get'),
-                      _('The maximum number of covers to process from the google search result')),
-               Option('size', 'choices', 'svga', _('Cover size'),
-                      _('Search for covers larger than the specified size'),
-                      choices=OrderedDict((
-                          ('any', _('Any size'),),
-                          ('l', _('Large'),),
-                          ('qsvga', _('Larger than %s')%'400x300',),
-                          ('vga', _('Larger than %s')%'640x480',),
-                          ('svga', _('Larger than %s')%'600x800',),
-                          ('xga', _('Larger than %s')%'1024x768',),
-                          ('2mp', _('Larger than %s')%'2 MP',),
-                          ('4mp', _('Larger than %s')%'4 MP',),
-                      ))),
+    options = (
+               Option('max_covers', 'number', 5,
+                      _('Maximum obálek'),
+                      _('Maximum obálek které se budou stahovat')),
+               Option('serie_index', 'bool', True,
+                      _('Pozice v sérii'),
+                      _('Cbdb neudává pozici v sérii, pouze vypisuje seznam knih v sérii ve správném pořadí, takže pokud některá např. chybí jsou pozice rozhozené, je zde možnost tuto nespolehlivou vlastnost vypnout. Stále se ovšem bude zobrazovat alespoň informace o názvu série')),
     )
 
     '''

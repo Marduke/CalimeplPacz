@@ -183,14 +183,15 @@ class Worker(Thread):
             self.log('Found serie:None')
             return [None, None]
         else:
-            tmp_index = self.xpath_serie_index(xml_detail)
             index = 0
-            if len(tmp_index) > 0:
-                for i, url in enumerate(tmp_index):
-                    tmp_ident = int(url.split('-')[1])
-                    if tmp_ident == self.number:
-                        index = i + 1
-                        break
+            if self.plugin.prefs['serie_index']:
+                tmp_index = self.xpath_serie_index(xml_detail)
+                if len(tmp_index) > 0:
+                    for i, url in enumerate(tmp_index):
+                        tmp_ident = int(url.split('-')[1])
+                        if tmp_ident == self.number:
+                            index = i + 1
+                            break
 
             self.log('Found serie:%s[%i]'%(tmp[0],index))
             return [tmp[0], index]

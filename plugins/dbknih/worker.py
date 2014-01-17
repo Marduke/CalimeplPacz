@@ -128,28 +128,31 @@ class Worker(Thread):
         result = MutableString()
         if len(tmp) > 0:
             result += "".join(tmp[0].xpath("text()"))
+        self.log('Found comment:%s'%result)
 
-        tmp = self.xpath_books_contains(xml_detail)
-        if len(tmp) > 0:
-            result += "<p>Seznam knih ve kterých se povídka vyskytuje:<br/>"
-            for book in tmp:
-                result += book
-                result += "<br/>"
-            result += "</p>"
+        if self.plugin.prefs['add_mother_book_list']:
+            tmp = self.xpath_books_contains(xml_detail)
+            if len(tmp) > 0:
+                result += "<p>Seznam knih ve kterých se povídka vyskytuje:<br/>"
+                for book in tmp:
+                    result += book
+                    result += "<br/>"
+                result += "</p>"
 
-        tmp = self.xpath_short_stories_url(xml_detail)
-        if len(tmp) > 0:
-            xml_story_list = self.download_short_story_list(tmp[0])
-            tmp2 = self.xpath_short_stories_list(xml_story_list)
+        if self.plugin.prefs['add_short_story_list']:
+            tmp = self.xpath_short_stories_url(xml_detail)
+            if len(tmp) > 0:
+                xml_story_list = self.download_short_story_list(tmp[0])
+                tmp2 = self.xpath_short_stories_list(xml_story_list)
 
-            result += "<p>Seznam povídek:<br/>"
-            for story in tmp2:
-                result += story
-                result += "<br/>"
-            result += "</p>"
+                result += "<p>Seznam povídek:<br/>"
+                for story in tmp2:
+                    result += story
+                    result += "<br/>"
+                result += "</p>"
 
         if len(result) > 0:
-            self.log('Found comment:%s'%result)
+            self.log('Found comment with addings:%s'%result)
             return result
         else:
             self.log('Found comment:None')
@@ -192,24 +195,24 @@ class Worker(Thread):
         tmp = self.xpath_tags(xml_detail)
         if len(tmp) > 0:
             result.extend(tmp[0].split(' - '))
-            #TODO: add this also? to settings
-            tmp2 = self.xpath_site_tags(xml_more_info)
-            if len(tmp2) > 0:
-                result.extend(tmp2)
+            if self.plugin.prefs['parse_tags']:
+                tmp2 = self.xpath_site_tags(xml_more_info)
+                if len(tmp2) > 0:
+                    result.extend(tmp2)
 
-        #TODO: settings povidka tag
-        if self.ident.startswith('povidky/'):
-            result.append('Povídka')
+        if self.plugin.prefs['short_story']:
+            if self.ident.startswith('povidky/'):
+                result.append('Povídka')
 
-        #TODO: settings Sbírka povídek tag
-        tmp = self.xpath_short_stories_url(xml_detail)
-        if len(tmp) > 0:
-            result.append('Sbírka povídek')
+        if self.plugin.prefs['short_story_collection']:
+            tmp = self.xpath_short_stories_url(xml_detail)
+            if len(tmp) > 0:
+                result.append('Sbírka povídek')
 
-        #TODO: settings edice to tags
-        tmp = self.xpath_edition(xml_more_info)
-        if len(tmp) > 0:
-            result.append(tmp[0])
+        if self.plugin.prefs['edition']:
+            tmp = self.xpath_edition(xml_more_info)
+            if len(tmp) > 0:
+                result.append(tmp[0])
 
         self.log('Found tags:%s'%result)
         return result
@@ -234,9 +237,11 @@ class Worker(Thread):
             return [tmp[0], None]
 
     def parse_pub_year(self, xml_detail, xml_more_info):
-        #TODO: settings, switch to right source
-        tmp = self.xpath_pub_year_act(xml_detail)
-        #tmp = pub_year_first(xml_more_info)
+        if self.plugin.prefs['pub_date'] == 'Poslední datum vydání':
+            tmp = self.xpath_pub_year_act(xml_detail)
+        elif self.plugin.prefs['pub_date'] == 'První datum vydání':
+            tmp = self.xpath_pub_year_first(xml_more_info)
+
         if len(tmp) > 0:
             res = self.prepare_date(int(tmp[0]))
             self.log('Found pub_date:%s'%res)
