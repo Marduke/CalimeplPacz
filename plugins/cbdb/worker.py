@@ -13,7 +13,7 @@ from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
-import datetime, inspect
+import datetime, inspect, re
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -48,9 +48,10 @@ class Worker(Thread):
         self.xpath_isbn = self.XPath('//x:span[@itemprop="isbn"]/text()')
         self.xpath_publisher = self.XPath('//x:span[@itemprop="isbn"]/preceding-sibling::text()')
         self.xpath_tags = self.XPath('//x:td[@class="v_top"]/x:strong[2]/text()')
+        self.xpath_serie_condition = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:legend/text()')
         self.xpath_serie = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:div/x:strong/text()')
         self.xpath_serie_index = self.XPath('//x:div[@id="right"]/x:fieldset[1]//x:div[@class="right_book"]/x:a/@href')
-        self.xpath_cover = self.XPath('//x:td[@id="book_covers"]/x:div/x:img/@src')
+        self.xpath_cover = self.XPath('//td[@id="book_covers"]//x:img/@src')
 
     def run(self):
         self.initXPath()
@@ -178,6 +179,11 @@ class Worker(Thread):
             return None
 
     def parse_serie(self, xml_detail):
+        tmp = self.xpath_serie_condition(xml_detail)
+        if len(tmp) == 0 or not tmp[0] == 'Série':
+            self.log('Found serie:None')
+            return [None, None]
+
         tmp = self.xpath_serie(xml_detail)
         if len(tmp) == 0:
             self.log('Found serie:None')
@@ -217,6 +223,10 @@ class Worker(Thread):
         try:
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
+
+            #fix, time limited action, broke HTML
+            data = re.sub("ledna!</a></span>", b"ledna!</a>", data)
+
             self.devel.log_file(self.number, 'detail',  data)
 
             parser = etree.XMLParser(recover=True)
