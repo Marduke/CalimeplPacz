@@ -26,6 +26,7 @@ if __name__ == '__main__':
     name = None
     directory = None
     temp_directory = "..\\tmp"
+    auto_copy = ["devel", "metadata_compare"]
 
     if len(sys.argv) == 2:
         directory = name = sys.argv[1]
@@ -42,7 +43,9 @@ if __name__ == '__main__':
     #empty file with plugin name
     open("%s\\plugin-import-name-%s.txt"%(temp_directory,name), "w").close()
 
-    copyfile("devel.py", "%s\\devel.py"%temp_directory)
+    for tmp in auto_copy:
+        copyfile("%s.py"%tmp, "%s\\%s.py"%(temp_directory, tmp))
+
     for f in os.listdir(directory):
         #only python files
         if re.match(".*\.py$", f) != None:
