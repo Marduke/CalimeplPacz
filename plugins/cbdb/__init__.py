@@ -105,12 +105,17 @@ class Cbdb(Source):
     A list of Option objects. They will be used to automatically construct the configuration widget for this plugin
     '''
     options = (
+               Option('max_search', 'number', 25,
+                      'Maximum knih',
+                      'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
+
                Option('max_covers', 'number', 5,
-                      _('Maximum obálek'),
-                      _('Maximum obálek které se budou stahovat')),
+                      'Maximum obálek',
+                      'Maximum obálek které se budou stahovat'),
+
                Option('serie_index', 'bool', True,
-                      _('Pozice v sérii'),
-                      _('Cbdb neudává pozici v sérii, pouze vypisuje seznam knih v sérii ve správném pořadí, takže pokud některá např. chybí jsou pozice rozhozené, je zde možnost tuto nespolehlivou vlastnost vypnout. Stále se ovšem bude zobrazovat alespoň informace o názvu série')),
+                      'Pozice v sérii',
+                      'Cbdb neudává pozici v sérii, pouze vypisuje seznam knih v sérii ve správném pořadí, takže pokud některá např. chybí jsou pozice rozhozené, je zde možnost tuto nespolehlivou vlastnost vypnout. Stále se ovšem bude zobrazovat alespoň informace o názvu série'),
     )
 
     '''
@@ -169,6 +174,7 @@ class Cbdb(Source):
         try:
             log.info('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
+            #fix, time limited action, broke HTML
             raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
         except Exception as e:
             log.exception('Failed to make identify query: %r'%query)
@@ -181,9 +187,9 @@ class Cbdb(Source):
             self.devel.log_file('','search',  clean)
 
             feed = fromstring(clean, parser=parser)
-            if len(parser.error_log) > 0: #some errors while parsing
-                log.info('while parsing page occus some errors:')
-                log.info(parser.error_log)
+#             if len(parser.error_log) > 0: #some errors while parsing
+#                 log.info('while parsing page occus some errors:')
+#                 log.info(parser.error_log)
 
             entries = entry(feed)
             if len(entries) == 0:
@@ -211,6 +217,8 @@ class Cbdb(Source):
         log.info('Found %i matches'%matches)
 
         try:
+            found = found[:self.prefs['max_search']]
+            workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
                 workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml, self.devel)]
@@ -272,6 +280,9 @@ class Cbdb(Source):
         cached_urls = self.get_cached_cover_url(identifiers)
         if not title:
             return
+        if not cached_urls:
+            self.identify(log, result_queue, abort, title, authors, identifiers, timeout)
+            cached_urls = self.get_cached_cover_url(identifiers)
         self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
 
     def get_book_url(self, identifiers):
@@ -342,15 +353,21 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-                [title_test('Meč osudu', exact=False)]
-            )
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+#                 [title_test('Meč osudu', exact=False)]
+#             )
 #             ,
 #             (
 #                 {'identifiers':{}, #short story
 #                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
+#             ,
+            (
+                {'identifiers':{}, #short story
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
+            )
         ])

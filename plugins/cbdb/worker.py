@@ -197,6 +197,7 @@ class Worker(Thread):
             return [tmp[0], index]
 
     def parse_cover(self, xml_detail):
+        #TODO: book with one cover not found it, only with more
         tmp = self.xpath_cover(xml_detail)
         result = []
         if len(tmp) > 0:

@@ -7,9 +7,6 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-#TODO: settings - parse short stories list and store it at end of comment
-#TODO: settings - for short stories parse list of book which include it and add it and end of comment
-
 import re, time
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
@@ -107,6 +104,10 @@ class Dbknih(Source):
     A list of Option objects. They will be used to automatically construct the configuration widget for this plugin
     '''
     options = (
+               Option('max_search', 'number', 25,
+                      'Maximum knih',
+                      'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
+
                Option("edition", 'bool', True,
                       "přidávat edici do tagů",
                       "Pokud bude u knihy/povídky nalezena edice bude přidána k tagům"),
@@ -233,6 +234,7 @@ class Dbknih(Source):
             found.remove(ident)
             found.insert(0, ident)
 
+        found = found[:self.prefs['max_search']]
         try:
             workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
 
