@@ -52,7 +52,7 @@ class Cbdb(Source):
     '''
     devel dir
     '''
-    devel = Devel(r'E:\tmp\devel\cbdb', True)
+    devel = Devel(r'\tmp\devel\cbdb', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -198,6 +198,7 @@ class Cbdb(Source):
         try:
             log.info('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
+            raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
         except Exception as e:
             log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)

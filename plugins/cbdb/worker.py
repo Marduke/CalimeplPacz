@@ -24,7 +24,6 @@ class Worker(Thread):
     #int id
     number = None
 
-#TODO: all covers
     def __init__(self, ident, result_queue, browser, log, relevance, plugin, xml, devel, timeout=20):
         Thread.__init__(self)
         self.daemon = True
@@ -49,12 +48,9 @@ class Worker(Thread):
         self.xpath_isbn = self.XPath('//x:span[@itemprop="isbn"]/text()')
         self.xpath_publisher = self.XPath('//x:span[@itemprop="isbn"]/preceding-sibling::text()')
         self.xpath_tags = self.XPath('//x:td[@class="v_top"]/x:strong[2]/text()')
-#         self.xpath_site_tags = self.XPath('//x:p[@class="binfo"][2]/x:a/@title')
-#         self.xpath_edition = self.XPath('//a[starts-with(@href, "edice/")]/text()')
-#         self.xpath_serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
-#         self.xpath_serie_index = self.XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%self.ident)
+        self.xpath_serie = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:div/x:strong/text()')
+        self.xpath_serie_index = self.XPath('//x:div[@id="right"]/x:fieldset[1]//x:div[@class="right_book"]/x:a/@href')
         self.xpath_cover = self.XPath('//x:td[@id="book_covers"]/x:div/x:img/@src')
-
 
     def run(self):
         self.initXPath()
@@ -82,7 +78,7 @@ class Worker(Thread):
         isbn = self.parse_isbn(xml_detail)
         publisher, pub_year = self.parse_publisher(xml_detail)
         tags = self.parse_tags(xml_detail)
-#         serie, serie_index = self.parse_serie(xml_detail)
+        serie, serie_index = self.parse_serie(xml_detail)
         cover = self.parse_cover(xml_detail)
 
         if title is not None and authors is not None:
@@ -95,10 +91,10 @@ class Worker(Thread):
             mi.publisher = publisher
             mi.pubdate = pub_year
             mi.isbn = isbn
-#             mi.series = serie
-#             mi.seriesIndex = serie_index
+            mi.series = serie
+            mi.series_index = serie_index
             mi.cover_url = cover
-#
+
             if cover:
                 self.plugin.cache_identifier_to_cover_url(str(self.number), cover)
 
@@ -183,32 +179,28 @@ class Worker(Thread):
 
     def parse_serie(self, xml_detail):
         tmp = self.xpath_serie(xml_detail)
-
         if len(tmp) == 0:
             self.log('Found serie:None')
             return [None, None]
-
-        xml_serie_index = self.download_serie_index(tmp[0].get('href'))
-        if self.xpath_serie_index:
-            tmp_index = self.xpath_serie_index(xml_serie_index)
-            if len(tmp_index) > 0:
-                self.log('Found serie:%s[%s]'%(tmp[0].text,tmp_index[0]))
-                return [tmp[0], tmp_index[0]]
-            else:
-                self.log('Found serie:%s[None]'%tmp[0].text)
-                return [tmp[0], None]
         else:
-            return [tmp[0], None]
+            tmp_index = self.xpath_serie_index(xml_detail)
+            index = 0
+            if len(tmp_index) > 0:
+                for i, url in enumerate(tmp_index):
+                    tmp_ident = int(url.split('-')[1])
+                    if tmp_ident == self.number:
+                        index = i + 1
+                        break
+
+            self.log('Found serie:%s[%i]'%(tmp[0],index))
+            return [tmp[0], index]
 
     def parse_cover(self, xml_detail):
         tmp = self.xpath_cover(xml_detail)
         result = []
         if len(tmp) > 0:
-            self.log(tmp)
             for cover in tmp:
-                self.log(cover)
                 ident = cover.split("=")[-1]
-                self.log(ident)
                 result.append('http://www.cbdb.cz/books/%s.jpg'%ident)
         if len(result) > 0:
             self.log('Found covers:%s'%result)
@@ -231,53 +223,6 @@ class Worker(Thread):
             return xml
         except Exception as e:
             self.logexception('Failed to make download : %r'%query)
-            return None
-
-    def download_moreinfo(self):
-        query_more_info = '%shelpful/ajax/more_binfo.php?bid=%d'%(self.plugin.BASE_URL, self.number)
-        try:
-            self.log('download page moreinfo %s'%query_more_info)
-            data = self.browser.open(query_more_info, timeout=self.timeout).read().strip()
-            #fix - ajax request in not valid XML
-            data = '<html>%s</html>'%data
-            self.devel.log_file(self.number, 'moreInfo',  data)
-
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(data)
-            xml = fromstring(clean,  parser=parser)
-            return xml
-        except Exception as e:
-            self.logexception('Failed to make download : %r'%query_more_info)
-            return None
-
-    def download_short_story_list(self, url):
-        query_short_stories = self.plugin.BASE_URL + url
-        try:
-            self.log('download page with short stories list %s'%query_short_stories)
-            data = self.browser.open(query_short_stories, timeout=self.timeout).read().strip()
-            self.devel.log_file(self.number,'stories',  data)
-
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(data)
-            xml = fromstring(clean,  parser=parser)
-            return xml
-        except Exception as e:
-            self.logexception('Failed to make download : %r'%query_short_stories)
-            return None
-
-    def download_serie_index(self, url):
-        query_serie = self.plugin.BASE_URL + url
-        try:
-            self.log('download page with serie %s'%query_serie)
-            data = self.browser.open(query_serie, timeout=self.timeout).read().strip()
-            self.devel.log_file(self.number, 'serie_index',  data)
-
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(data)
-            xml = fromstring(clean,  parser=parser)
-            return xml
-        except Exception as e:
-            self.logexception('Failed to make download : %r'%query_serie)
             return None
 
     def log(self, param):

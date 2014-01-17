@@ -203,9 +203,9 @@ class Dbknih(Source):
             self.devel.log_file('','search',  clean)
 
             feed = fromstring(clean,  parser=parser)
-            if len(parser.error_log) > 0: #some errors while parsing
-                log.info('while parsing page occus some errors:')
-                log.info(parser.error_log)
+#             if len(parser.error_log) > 0: #some errors while parsing
+#                 log.info('while parsing page occus some errors:')
+#                 log.info(parser.error_log)
 
             #Books
             for book in entry(feed):

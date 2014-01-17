@@ -94,7 +94,7 @@ class Worker(Thread):
             mi.pubdate = pub_year
             mi.isbn = isbn
             mi.series = serie
-            mi.seriesIndex = serie_index
+            mi.series_index = serie_index
             mi.cover_url = cover
 
             if cover:
@@ -174,7 +174,7 @@ class Worker(Thread):
             self.log('Found ISBN:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log('Found authors:None')
+            self.log('Found ISBN:None')
             return None
 
     def parse_publisher(self, xml_more_info):
