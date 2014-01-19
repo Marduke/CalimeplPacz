@@ -216,8 +216,11 @@ class Cbdb(Source):
 
         log.info('Found %i matches'%matches)
 
-        try:
+        if len(found) > self.prefs['max_search']:
+            found.sort(cmp=None, key=None, reverse=False)
             found = found[:self.prefs['max_search']]
+            
+        try:
             workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
@@ -341,11 +344,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
 #             )
 #            ,
-            (
-                {'identifiers':{'bookfan1': '83502'}, #edice
-                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-                [title_test('Zlodějka knih', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #edice
+#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                 [title_test('Zlodějka knih', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #serie
@@ -365,9 +368,9 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-#                 [title_test('Vlk', exact=False)]
-#             )
+            (
+                {'identifiers':{}, #short story
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
+            )
         ])
