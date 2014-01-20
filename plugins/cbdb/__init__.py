@@ -161,7 +161,8 @@ class Cbdb(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]//x:a[starts-with(@href, "kniha-")]/@href')
+        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
+#         entry = XPath('//x:div[@class="content_box_content"]/x:table[1]//x:a[starts-with(@href, "kniha-")]/@href')
         detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
 
         query = self.create_query(log, title=title, authors=authors,
@@ -198,9 +199,18 @@ class Cbdb(Source):
                 if ident is not None and detail_ident != ident:
                     found.append(ident)
             else:
-                for book in entries:
-                    if book != ident:
-                        found.append(book)
+                for book_ref in entries:
+                    log(book_ref)
+                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                    authors = []
+                    for i in (tmp[1:]):
+                        authors.append(i.text)
+                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), authors)
+                    log(add)
+#                     if add[0] != ident:
+#                         found.append(add)
+#                     else:
+#                         found.append(add, 0)
 
         except Exception as e:
             log.exception('Failed to parse identify results')
@@ -215,12 +225,16 @@ class Cbdb(Source):
             matches += 1
 
         log.info('Found %i matches'%matches)
+        log.info(found)
 
         if len(found) > self.prefs['max_search']:
+#             PreFilterMetadataCompare
             found.sort(cmp=None, key=None, reverse=False)
             found = found[:self.prefs['max_search']]
-            
+        log.info(found)
+
         try:
+#             found = found[:self.prefs['max_search']]
             workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
