@@ -1,9 +1,0 @@
-Plugin updated: cbdb (1, 0, 0)
-Testing the identify function of cbdb
-Using proxies: {'ftp': 'squid3.zdas.cz:8080', 'http': 'squid3.zdas.cz:8080', 'https': 'squid3.zdas.cz:8080'}
-Using extra headers: [('User-agent', 'Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1')]
-Log saved to c:\users\mikslm\appdata\local\temp\cbdb_identify_test.txt
-Running test with: {u'authors': [u'Eric Eliot Knight'], u'identifiers': {}, u'title': u'Vlk'}
-Found 0 matches: Smaller relevance means better match
-ERROR: No results that passed all tests were found
-Log saved to c:\users\mikslm\appdata\local\temp\cbdb_identify_test.txt

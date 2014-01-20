@@ -20,6 +20,7 @@ from Queue import Queue, Empty
 from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.cbdb.devel import Devel
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen
+from metadata_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.metadata_compare import PreFilterMetadataCompare
 
 class Cbdb(Source):
 
@@ -199,18 +200,23 @@ class Cbdb(Source):
                 if ident is not None and detail_ident != ident:
                     found.append(ident)
             else:
-                for book_ref in entries:
-                    log(book_ref)
-                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-                    authors = []
-                    for i in (tmp[1:]):
-                        authors.append(i.text)
-                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), authors)
-                    log(add)
-#                     if add[0] != ident:
-#                         found.append(add)
-#                     else:
-#                         found.append(add, 0)
+                log('Found %i matches'%len(found))
+                if len(found) > self.prefs['max_search']:
+                    for book_ref in entries:
+                        tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                        authors = []
+                        for i in (tmp[1:]):
+                            authors.append(i.text)
+                        add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), authors)
+                        if add[0] != ident:
+                            found.append(add)
+                        else:
+                            found.append(add, 0)
+
+                        found.sort(key=self.prefilter_compare_gen(title=kwargs.get('title', None), authors=kwargs.get('authors',None), identifiers=kwargs.get('identifiers', {})))
+                        found = found[:self.prefs['max_search']]
+                else:
+                    found.extend(found)
 
         except Exception as e:
             log.exception('Failed to parse identify results')
@@ -219,19 +225,6 @@ class Cbdb(Source):
         if ident and found.count(ident) > 0:
             found.remove(ident)
             found.insert(0, ident)
-
-        matches = len(found)
-        if xml is not None:
-            matches += 1
-
-        log.info('Found %i matches'%matches)
-        log.info(found)
-
-        if len(found) > self.prefs['max_search']:
-#             PreFilterMetadataCompare
-            found.sort(cmp=None, key=None, reverse=False)
-            found = found[:self.prefs['max_search']]
-        log.info(found)
 
         try:
 #             found = found[:self.prefs['max_search']]
@@ -343,6 +336,14 @@ class Cbdb(Source):
         def keygen(mi):
             return MetadataCompareKeyGen(mi, self, title, authors,
                 identifiers)
+        return keygen
+
+    def prefilter_compare_gen(self, title=None, authors):
+        '''
+
+        '''
+        def keygen(data):
+            return PreFilterMetadataCompare(data, self, title, authors)
         return keygen
 
 if __name__ == '__main__': # tests
