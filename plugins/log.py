@@ -22,9 +22,9 @@ class Log(object):
     def __init__(self, name, parent_log, buffered = True):
         self.name = name
         self.parent_log = parent_log
+        self.buffered = buffered
         if buffered == True:
             self.buffer = MutableString()
-            self.buffered = buffered
 
     def info(self, param):
         self.__inner_log(param, "info")

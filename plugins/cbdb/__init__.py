@@ -218,15 +218,12 @@ class Cbdb(Source):
 
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
 
-                self.log.info(len(tmp_entries))
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries = tmp_entries[:self.prefs['max_search']]
-                self.log.info(len(tmp_entries))
 
                 for val in tmp_entries:
                     found.append(val[0])
 
-                self.log.info(found)
         except Exception as e:
             self.log.exception('Failed to parse identify results')
             return as_unicode(e)
@@ -301,10 +298,32 @@ class Cbdb(Source):
         if not title:
             return
         if not cached_urls:
-            self.identify(log, result_queue, abort, title, authors, identifiers, timeout)
-            cached_urls = self.get_cached_cover_url(identifiers)
-        self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
+            self.log.info('No cached cover found, running identify')
+            rq = Queue()
+            self.identify(log, rq, abort, title, authors, identifiers, timeout)
+            if abort.is_set():
+                return
+            results = []
+            while True:
+                try:
+                    results.append(rq.get_nowait())
+                except Empty:
+                    break
+            results.sort(key=self.identify_results_keygen(
+                title=title, authors=authors, identifiers=identifiers))
+            for mi in results:
+                cached_urls = self.get_cached_cover_url(mi.identifiers)
+                if cached_urls is not None:
+                    break
+
+        if cached_urls is None:
+            log.info('No cover found')
+            return
+        self.log.info("Covers:%s"%cached_urls)
+        if abort.is_set():
+            return
         self.log.digg()
+        self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
 
     def get_book_url(self, identifiers):
         '''
@@ -390,15 +409,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
-#                 [title_test('Dilvermoon', exact=False)]
-#             )
-#             ,
             (
                 {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
+                'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
+                [title_test('Dilvermoon', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+#                 [title_test('Vlk', exact=False)]
+#             )
         ])
