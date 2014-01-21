@@ -13,7 +13,8 @@ from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
-import datetime, inspect, re
+from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
+import datetime, re
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -29,16 +30,17 @@ class Worker(Thread):
         self.daemon = True
         self.ident, self.result_queue = ident, result_queue
         self.browser = browser.clone_browser()
-        self.logger, self.relevance = log, relevance
+        self.devel, self.relevance = devel, relevance
         self.plugin, self.timeout = plugin, timeout
         self.cover_url = self.isbn = None
-        self.devel = devel
         self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
         self.xml = xml
         if xml is not None:
             self.number = int(ident)
         else:
             self.number = int(self.ident.split('-')[1])
+
+        self.log = Log("worker %i"%self.number, log, True)
 
     def initXPath(self):
         self.xpath_title = self.XPath('//x:span[@itemprop="name"]/text()')
@@ -67,9 +69,11 @@ class Worker(Thread):
                 if result:
                     self.result_queue.put(result)
             except Exception as e:
-                self.logexception(e)
+                self.log.exception(e)
         else:
-            self.log('Download metadata failed for: %r'%self.ident)
+            self.log.info('Download metadata failed for: %r'%self.ident)
+
+        self.log.digg()
 
     def parse(self, xml_detail):
         title = self.parse_title(xml_detail)
@@ -106,19 +110,19 @@ class Worker(Thread):
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
-            self.log('Found title:%s'%tmp[0])
+            self.log.info('Found title:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log('Found title:None')
+            self.log.info('Found title:None')
             return None
 
     def parse_authors(self, xml_detail):
         tmp = self.xpath_authors(xml_detail)
         if len(tmp) > 0:
-            self.log('Found authors:%s'%tmp)
+            self.log.info('Found authors:%s'%tmp)
             return tmp
         else:
-            self.log('Found authors:None')
+            self.log.info('Found authors:None')
             return None
 
     def parse_comments(self, xml_detail):
@@ -126,10 +130,10 @@ class Worker(Thread):
 
         if len(tmp) > 0:
             result = "".join(tmp).strip()
-            self.log('Found comment:%s'%result)
+            self.log.info('Found comment:%s'%result)
             return result
         else:
-            self.log('Found comment:None')
+            self.log.info('Found comment:None')
             return None
 
     def parse_rating(self, xml_detail):
@@ -139,19 +143,19 @@ class Worker(Thread):
             rating = int(stars_ / 20)
             if stars_ % 20 > 0:
                 rating += 1
-            self.log('Found rating:%s'%rating)
+            self.log.info('Found rating:%s'%rating)
             return rating
         else:
-            self.log('Found rating:None')
+            self.log.info('Found rating:None')
             return None
 
     def parse_isbn(self, xml_detail):
         tmp = self.xpath_isbn(xml_detail)
         if len(tmp) > 0:
-            self.log('Found ISBN:%s'%tmp[0])
+            self.log.info('Found ISBN:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log('Found ISBN:None')
+            self.log.info('Found ISBN:None')
             return None
 
     def parse_publisher(self, xml_more_info):
@@ -159,34 +163,34 @@ class Worker(Thread):
         if len(tmp) > 0:
             data = tmp[-2].strip().split(' - ')
             if len(data) == 2:
-                self.log('Found publisher:%s'%data[0])
-                self.log('Found pub date:%s'%data[1])
+                self.log.info('Found publisher:%s'%data[0])
+                self.log.info('Found pub date:%s'%data[1])
                 data[1] = self.prepare_date(int(data[1]))
                 return data
 
-        self.log('Found publisher:None')
-        self.log('Found pub date:None')
+        self.log.info('Found publisher:None')
+        self.log.info('Found pub date:None')
         return (None, None)
 
     def parse_tags(self, xml_detail):
         tmp = self.xpath_tags(xml_detail)
         if len(tmp) > 0:
             result = tmp[0].split(' / ')
-            self.log('Found tags:%s'%result)
+            self.log.info('Found tags:%s'%result)
             return result
         else:
-            self.log('Found tags:None')
+            self.log.info('Found tags:None')
             return None
 
     def parse_serie(self, xml_detail):
         tmp = self.xpath_serie_condition(xml_detail)
         if len(tmp) == 0 or not tmp[0] == 'Série':
-            self.log('Found serie:None')
+            self.log.info('Found serie:None')
             return [None, None]
 
         tmp = self.xpath_serie(xml_detail)
         if len(tmp) == 0:
-            self.log('Found serie:None')
+            self.log.info('Found serie:None')
             return [None, None]
         else:
             index = 0
@@ -199,7 +203,7 @@ class Worker(Thread):
                             index = i + 1
                             break
 
-            self.log('Found serie:%s[%i]'%(tmp[0],index))
+            self.log.info('Found serie:%s[%i]'%(tmp[0],index))
             return [tmp[0], index]
 
     def parse_cover(self, xml_detail):
@@ -210,16 +214,16 @@ class Worker(Thread):
                 ident = cover.split("=")[-1]
                 result.append('http://www.cbdb.cz/books/%s.jpg'%ident)
         if len(result) > 0:
-            self.log('Found covers:%s'%result)
+            self.log.info('Found covers:%s'%result)
         else:
-            self.log('Found covers:None')
+            self.log.info('Found covers:None')
         return result
 
     def download_detail(self):
         query = self.plugin.BASE_URL + self.ident
         br = self.browser
         try:
-            self.log('download page detail %s'%query)
+            self.log.info('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
 
             #fix, time limited action, broke HTML
@@ -232,20 +236,8 @@ class Worker(Thread):
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
-            self.logexception('Failed to make download : %r'%query)
+            self.log.exception('Failed to make download : %r'%query)
             return None
-
-    def log(self, param):
-        frame = inspect.getouterframes(inspect.currentframe(), 2)[1]
-        self.logger.info('%s(%s): %s - %s'%(frame[3],frame[2],self.number, param))
-
-    def logerror(self, param):
-        frame = inspect.getouterframes(inspect.currentframe(), 2)[1]
-        self.logger.error('%s(%s): %s - %s'%(frame[3],frame[2],self.number, param))
-
-    def logexception(self, param):
-        frame = inspect.getouterframes(inspect.currentframe(), 2)[1]
-        self.logger.exception('%s(%s): %s - %s'%(frame[3],frame[2],self.number, param))
 
     def prepare_date(self,year):
         from calibre.utils.date import utc_tz

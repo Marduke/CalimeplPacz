@@ -19,8 +19,8 @@ from functools import partial
 from Queue import Queue, Empty
 from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.cbdb.devel import Devel
-from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen
-from metadata_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.metadata_compare import PreFilterMetadataCompare
+from metadata_compare import MetadataCompareKeyGen, PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen, PreFilterMetadataCompare
+from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
 
 class Cbdb(Source):
 
@@ -153,7 +153,9 @@ class Cbdb(Source):
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
 
+        self.log = Log(self.name, log, True)
         self.devel.setLog(log)
+
         found = []
         xml = None
         detail_ident = None
@@ -166,20 +168,20 @@ class Cbdb(Source):
 #         entry = XPath('//x:div[@class="content_box_content"]/x:table[1]//x:a[starts-with(@href, "kniha-")]/@href')
         detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
 
-        query = self.create_query(log, title=title, authors=authors,
+        query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
         if not query:
-            log.error('Insufficient metadata to construct query')
+            self.log.error('Insufficient metadata to construct query')
             return
 
         br = self.browser
         try:
-            log.info('download page search %s'%query)
+            self.log.info('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
             #fix, time limited action, broke HTML
             raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
         except Exception as e:
-            log.exception('Failed to make identify query: %r'%query)
+            self.log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
 
         try:
@@ -189,9 +191,6 @@ class Cbdb(Source):
             self.devel.log_file('','search',  clean)
 
             feed = fromstring(clean, parser=parser)
-#             if len(parser.error_log) > 0: #some errors while parsing
-#                 log.info('while parsing page occus some errors:')
-#                 log.info(parser.error_log)
 
             entries = entry(feed)
             if len(entries) == 0:
@@ -200,7 +199,7 @@ class Cbdb(Source):
                 if ident is not None and detail_ident != ident:
                     found.append(ident)
             else:
-                log('Found %i matches'%len(found))
+                self.log.info('Found %i matches'%len(found))
                 if len(found) > self.prefs['max_search']:
                     act_authors = []
                     for act in authors:
@@ -226,7 +225,7 @@ class Cbdb(Source):
                     found.extend(found)
 
         except Exception as e:
-            log.exception('Failed to parse identify results')
+            self.log.exception('Failed to parse identify results')
             return as_unicode(e)
 
         if ident and found.count(ident) > 0:
@@ -238,8 +237,8 @@ class Cbdb(Source):
             workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
-                workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml, self.devel)]
-            workers += [Worker(ident, result_queue, br, log, i, self, None, self.devel) for i, ident in enumerate(found)]
+                workers = [Worker(detail_ident, result_queue, br, self.log, 0, self, xml, self.devel)]
+            workers += [Worker(ident, result_queue, br, self.log, i, self, None, self.devel) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -256,11 +255,12 @@ class Cbdb(Source):
                 if not a_worker_is_alive:
                     break
         except Exception as e:
-            log.error(e)
+            self.log.error(e)
 
+        self.log.digg()
         return None
 
-    def create_query(self,  log, title=None, authors=None, identifiers={}):
+    def create_query(self, title=None, authors=None, identifiers={}):
         '''
         create url for HTTP request
         '''
@@ -294,6 +294,7 @@ class Cbdb(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
+        self.log = Log(log)
         cached_urls = self.get_cached_cover_url(identifiers)
         if not title:
             return
@@ -301,6 +302,7 @@ class Cbdb(Source):
             self.identify(log, result_queue, abort, title, authors, identifiers, timeout)
             cached_urls = self.get_cached_cover_url(identifiers)
         self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
+        self.log.digg()
 
     def get_book_url(self, identifiers):
         '''
