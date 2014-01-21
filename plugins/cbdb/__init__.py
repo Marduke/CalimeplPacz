@@ -199,31 +199,34 @@ class Cbdb(Source):
                 if ident is not None and detail_ident != ident:
                     found.append(ident)
             else:
-                self.log.info('Found %i matches'%len(found))
-                if len(found) > self.prefs['max_search']:
-                    act_authors = []
-                    for act in authors:
-                        act_authors.append(act.split(" ")[-1])
+                self.log.info('Found %i matches'%len(entries))
+                act_authors = []
+                for act in authors:
+                    act_authors.append(act.split(" ")[-1])
 
-                    for book_ref in entries:
-                        to_sort = []
-                        tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-                        auths = [] #authors surnames
-                        for i in (tmp[1:]):
-                            auths.append(i.text.split(" ")[-1])
-                        add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-                        if add[0] != ident:
-                            to_sort.append(add)
-                        else:
-                            to_sort.append(add, 0)
+                tmp_entries = []
+                for book_ref in entries:
+                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                    auths = [] #authors surnames
+                    for i in (tmp[1:]):
+                        auths.append(i.text.split(" ")[-1])
+                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
+                    if add[0] != ident:
+                        tmp_entries.append(add)
+                    else:
+                        tmp_entries.append(add, 0)
 
-                        to_sort.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                        found = []
-                        for val in to_sort[:self.prefs['max_search']]:
-                            found.append(val[0])
-                else:
-                    found.extend(found)
+                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
 
+                self.log.info(len(tmp_entries))
+                if len(tmp_entries) > self.prefs['max_search']:
+                    tmp_entries = tmp_entries[:self.prefs['max_search']]
+                self.log.info(len(tmp_entries))
+
+                for val in tmp_entries:
+                    found.append(val[0])
+
+                self.log.info(found)
         except Exception as e:
             self.log.exception('Failed to parse identify results')
             return as_unicode(e)
@@ -294,7 +297,7 @@ class Cbdb(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
-        self.log = Log(log)
+        self.log = Log(self.name, log, True)
         cached_urls = self.get_cached_cover_url(identifiers)
         if not title:
             return
