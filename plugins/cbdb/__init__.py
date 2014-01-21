@@ -202,19 +202,26 @@ class Cbdb(Source):
             else:
                 log('Found %i matches'%len(found))
                 if len(found) > self.prefs['max_search']:
-                    for book_ref in entries:
-                        tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-                        authors = []
-                        for i in (tmp[1:]):
-                            authors.append(i.text)
-                        add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), authors)
-                        if add[0] != ident:
-                            found.append(add)
-                        else:
-                            found.append(add, 0)
+                    act_authors = []
+                    for act in authors:
+                        act_authors.append(act.split(" ")[-1])
 
-                        found.sort(key=self.prefilter_compare_gen(title=kwargs.get('title', None), authors=kwargs.get('authors',None), identifiers=kwargs.get('identifiers', {})))
-                        found = found[:self.prefs['max_search']]
+                    for book_ref in entries:
+                        to_sort = []
+                        tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                        auths = [] #authors surnames
+                        for i in (tmp[1:]):
+                            auths.append(i.text.split(" ")[-1])
+                        add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
+                        if add[0] != ident:
+                            to_sort.append(add)
+                        else:
+                            to_sort.append(add, 0)
+
+                        to_sort.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                        found = []
+                        for val in to_sort[:self.prefs['max_search']]:
+                            found.append(val[0])
                 else:
                     found.extend(found)
 
@@ -338,9 +345,11 @@ class Cbdb(Source):
                 identifiers)
         return keygen
 
-    def prefilter_compare_gen(self, title=None, authors):
+    def prefilter_compare_gen(self, title=None, authors=None):
         '''
-
+        Return a function that used to preOrdering if ser get more results
+        than we want to check. Filtering should found most relevant results
+        based on title and authors
         '''
         def keygen(data):
             return PreFilterMetadataCompare(data, self, title, authors)

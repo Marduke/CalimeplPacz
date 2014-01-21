@@ -38,4 +38,5 @@ local.properties
 **/*.e4*
 **/_eric4project
 
-*test.txt          
+**/test.txt
+**test.txt          

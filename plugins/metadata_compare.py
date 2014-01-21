@@ -93,17 +93,17 @@ class PreFilterMetadataCompare(object):
     def __init__(self, data, plugin, title, authors):
         if not data:
 #             print("WHUUUT?")
-            self.base = (1,0,0)
+            self.base = (0,0,0)
             return
 
         cl_title = cleanup_title(title)
         cl_title_data = cleanup_title(data[1])
 
-        exact_title = 2 if title and \
-                cl_title == cl_title_data else 1
+        exact_title = 1 if title and \
+                cl_title == cl_title_data else 0
 
         title_segments = list(set(cl_title.split(" ")) & set(cl_title_data.split(" ")))
-        author_segments = 1
+        author_segments = list(set(data[2]) & set(authors)) #authors surname list compare
 
         self.base = (exact_title, title_segments, author_segments)
 
