@@ -19,7 +19,8 @@ from functools import partial
 from Queue import Queue, Empty
 from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.cbdb.devel import Devel
-from metadata_compare import MetadataCompareKeyGen, PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen, PreFilterMetadataCompare
+from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.pre_filter_compare import PreFilterMetadataCompare
 from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
 
 class Cbdb(Source):
@@ -165,7 +166,6 @@ class Cbdb(Source):
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
-#         entry = XPath('//x:div[@class="content_box_content"]/x:table[1]//x:a[starts-with(@href, "kniha-")]/@href')
         detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
 
         query = self.create_query(title=title, authors=authors,
@@ -236,7 +236,6 @@ class Cbdb(Source):
             found.insert(0, ident)
 
         try:
-#             found = found[:self.prefs['max_search']]
             workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:

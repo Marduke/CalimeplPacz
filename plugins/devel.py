@@ -25,8 +25,9 @@ class Devel:
 
     #setLog
     def setLog(self, log):
-        self.log = log
-        self.clear(log)
+        if self.enable:
+            self.log = log
+            self.clear(log)
 
     #Delete all from previous devel run or other dirs/files within
     def clear(self, log):
