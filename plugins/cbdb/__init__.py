@@ -154,7 +154,7 @@ class Cbdb(Source):
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
 
-        self.log = Log(self.name, log, True)
+        self.log = Log(self.name, log, False)
         self.devel.setLog(log)
 
         found = []
@@ -293,7 +293,7 @@ class Cbdb(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
-        self.log = Log(self.name, log, True)
+        self.log = Log(self.name, log, False)
         cached_urls = self.get_cached_cover_url(identifiers)
         if not title:
             return

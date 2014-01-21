@@ -19,6 +19,8 @@ from Queue import Queue, Empty
 from dbknih.worker import Worker #REPLACE from calibre_plugins.dbknih.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.dbknih.devel import Devel
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.dbknih.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.dbknih.pre_filter_compare import PreFilterMetadataCompare
+from log import Log #REPLACE from calibre_plugins.dbknih.log import Log
 
 class Dbknih(Source):
 
@@ -172,6 +174,7 @@ class Dbknih(Source):
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
 
+        self.log = Log(self.name, log, False)
         self.devel.setLog(log)
         found = []
 
@@ -185,15 +188,15 @@ class Dbknih(Source):
         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
         story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
 
-        query = self.create_query(log, title=title, authors=authors,
+        query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
         if not query:
-            log.error('Insufficient metadata to construct query')
+            self.log.error('Insufficient metadata to construct query')
             return
 
         br = self.browser
         try:
-            log.info('download page search %s'%query)
+            self.log.info('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
 
             #following block fix html, some people dont use html escape on every &...
@@ -204,7 +207,7 @@ class Dbknih(Source):
             raw = raw.decode('utf-8', errors='replace')
 
         except Exception as e:
-            log.exception('Failed to make identify query: %r'%query)
+            self.log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
 
         try:
@@ -215,8 +218,8 @@ class Dbknih(Source):
 
             feed = fromstring(clean,  parser=parser)
 #             if len(parser.error_log) > 0: #some errors while parsing
-#                 log.info('while parsing page occus some errors:')
-#                 log.info(parser.error_log)
+#                 self.log.info('while parsing page occus some errors:')
+#                 self.log.info(parser.error_log)
 
             #Books
             for book in entry(feed):
@@ -227,7 +230,7 @@ class Dbknih(Source):
                 if story.startswith('knihy/') or story.startswith('povidky/'):
                     found.append(story)
         except Exception as e:
-            log.exception('Failed to parse identify results')
+            self.log.exception('Failed to parse identify results')
             return as_unicode(e)
 
         if ident and found.count(ident) > 0:
@@ -253,11 +256,12 @@ class Dbknih(Source):
                 if not a_worker_is_alive:
                     break
         except Exception as e:
-            log.error(e)
+            self.log.error(e)
 
+        self.log.digg()
         return None
 
-    def create_query(self,  log, title=None, authors=None, identifiers={}):
+    def create_query(self, title=None, authors=None, identifiers={}):
         '''
         create url for HTTP request
         '''
@@ -291,9 +295,10 @@ class Dbknih(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
+        self.log = Log(self.name, log, False)
         cached_url = self.get_cached_cover_url(identifiers)
         if cached_url is None:
-            log.info('No cached cover found, running identify')
+            self.log.info('No cached cover found, running identify')
             rq = Queue()
             self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
             if abort.is_set():
@@ -317,12 +322,13 @@ class Dbknih(Source):
         if abort.is_set():
             return
         br = self.browser
-        log('Downloading cover from:', cached_url)
+        self.log.info('Downloading cover from:%s'%cached_url)
         try:
             cdata = br.open_novisit(cached_url, timeout=timeout).read()
             result_queue.put((self, cdata))
         except:
-            log.exception('Failed to download cover from:', cached_url)
+            self.log.exception('Failed to download cover from:', cached_url)
+        self.log.digg()
 
 
     def get_book_url(self, identifiers):
