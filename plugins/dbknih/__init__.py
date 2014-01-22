@@ -185,8 +185,10 @@ class Dbknih(Source):
                 ident = None
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
-        story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
+#         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
+        entry = XPath('//x:p[@class="new_search" and x:a/@type="book"]')
+#         story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
+        story = XPath('//x:ul[@class="search_other"]/x:li[@class]')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -221,16 +223,48 @@ class Dbknih(Source):
 #                 self.log.info('while parsing page occus some errors:')
 #                 self.log.info(parser.error_log)
 
+
+            intersearch = []
             #Books
             for book in entry(feed):
-                if book.startswith('knihy/') or book.startswith('povidky/'):
-                    found.append(book)
+                children = book.getchildren()
+                url = children[2].get('href')
+                if not url.startswith('knihy/'):
+                    continue
+
+                name = children[2].text
+                authors = children[3].getchildren()[1].tail
+                authors = authors.replace(" ,...", "").strip()
+                add = [url, name, authors]
+                intersearch.append(add)
+
             #Short stories
             for story in story(feed):
-                if story.startswith('knihy/') or story.startswith('povidky/'):
-                    found.append(story)
+                children = story.getchildren()
+                url = children[0].get('href')
+                if not url.startswith('povidky/'):
+                    continue
+
+                name = children[0].text
+                authors = children[1].text[1:-1]
+                add = [url, name, authors]
+                intersearch.append(add)
+
+            self.log.info(intersearch)
+
+            if len(intersearch) > self.prefs("max_search"):
+                pass
+
+#             #Books
+#             for book in entry(feed):
+#                 if book.startswith('knihy/') or book.startswith('povidky/'):
+#                     found.append(book)
+#             #Short stories
+#             for story in story(feed):
+#                 if story.startswith('knihy/') or story.startswith('povidky/'):
+#                     found.append(story)
         except Exception as e:
-            self.log.exception('Failed to parse identify results')
+            self.log.exception('Failed to parse identify results: %s'%e)
             return as_unicode(e)
 
         if ident and found.count(ident) > 0:
@@ -393,11 +427,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Zlodějka knih', exact=False)]
 #             )
 #            ,
-            (
-                {'identifiers':{'bookfan1': '83502'}, #serie
-                'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-                [title_test('Hra o trůny', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #serie
+#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+#                 [title_test('Hra o trůny', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{'dbknih': 'povidky/carovny-svet-henry-kuttnera-2882/absolon-11582'}, #short story
@@ -410,4 +444,11 @@ if __name__ == '__main__': # tests
 #                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
+#             ,
+            (
+                {'identifiers':{}, #short story
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
+            )
+
         ])

@@ -43,10 +43,11 @@ class Log(object):
 
     def __inner_log(self, param, type):
         frame = inspect.getouterframes(inspect.currentframe(), 2)[2]
+        text = '%s:%s(%s): %s - %s'%(self.name, frame[3],frame[2], type, param)
         if self.buffered:
-            self.buffer += '%s:%s(%s): %s - %s\n'%(self.name, frame[3],frame[2], type, param)
+            self.buffer += text + '\n'
         else:
-            self.parent_write(param, type)
+            self.parent_write(text, type)
 
     def digg(self):
         if self.buffered:

@@ -29,7 +29,7 @@ class Worker(Thread):
     def __init__(self, ident, result_queue, browser, log, relevance, plugin, devel, timeout=20):
         Thread.__init__(self)
         self.daemon = True
-        self.ident, self.result_queue = ident, result_queue
+        self.ident, self.result_queue = ident[0], result_queue
         self.browser = browser.clone_browser()
         self.logger, self.relevance = log, relevance
         self.plugin, self.timeout = plugin, timeout
@@ -275,7 +275,7 @@ class Worker(Thread):
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
-            self.logexception('Failed to make download : %r'%query)
+            self.log.exception('Failed to make download : %r'%query)
             return None
 
     def download_moreinfo(self):
