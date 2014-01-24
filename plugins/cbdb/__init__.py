@@ -204,6 +204,7 @@ class Cbdb(Source):
                 for act in authors:
                     act_authors.append(act.split(" ")[-1])
 
+                ident_found = False
                 tmp_entries = []
                 for book_ref in entries:
                     tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
@@ -211,10 +212,12 @@ class Cbdb(Source):
                     for i in (tmp[1:]):
                         auths.append(i.text.split(" ")[-1])
                     add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-                    if add[0] != ident:
-                        tmp_entries.append(add)
-                    else:
-                        tmp_entries.append(add, 0)
+                    if tmp[0].get('href').split('-')[1] == ident:
+                        ident_found = True
+                    tmp_entries.append(add)
+
+                if not ident_found and ident is not None:
+                    tmp_entries.append(["-%i"%ident, title, authors],)
 
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
@@ -408,15 +411,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
-                [title_test('Dilvermoon', exact=False)]
-            )
-#             ,
 #             (
 #                 {'identifiers':{}, #short story
-#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-#                 [title_test('Vlk', exact=False)]
+#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
+#                 [title_test('Dilvermoon', exact=False)]
 #             )
+#             ,
+            (
+                {'identifiers':{}, #short story
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
+            )
         ])

@@ -31,7 +31,7 @@ class Dbknih(Source):
     '''
     devel dir
     '''
-    devel = Devel(r'D:\tmp\devel\dbknih', True)
+    devel = Devel(r'\tmp\devel\dbknih', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -178,16 +178,14 @@ class Dbknih(Source):
         self.devel.setLog(log)
         found = []
 
-        #test previous found first
+        #validate ident
         ident = identifiers.get(self.name, None)
         if ident:
             if not (ident.startswith('knihy/') or ident.startswith('povidky/')):
                 ident = None
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-#         entry = XPath('//x:p[@class="new_search"]/x:a[@type="book"][2]/@href')
         entry = XPath('//x:p[@class="new_search" and x:a/@type="book"]')
-#         story = XPath('//x:a[@class="search_to_stats" and @type="other"]/@href')
         story = XPath('//x:ul[@class="search_other"]/x:li[@class]')
 
         query = self.create_query(title=title, authors=authors,
@@ -223,8 +221,8 @@ class Dbknih(Source):
 #                 self.log.info('while parsing page occus some errors:')
 #                 self.log.info(parser.error_log)
 
+            ident_found = False
 
-            intersearch = []
             #Books
             for book in entry(feed):
                 children = book.getchildren()
@@ -232,11 +230,13 @@ class Dbknih(Source):
                 if not url.startswith('knihy/'):
                     continue
 
+                if url == ident:
+                    ident_found = True
                 name = children[2].text
                 authors = children[3].getchildren()[1].tail
                 authors = authors.replace(" ,...", "").strip()
                 add = [url, name, authors]
-                intersearch.append(add)
+                found.append(add)
 
             #Short stories
             for story in story(feed):
@@ -245,35 +245,30 @@ class Dbknih(Source):
                 if not url.startswith('povidky/'):
                     continue
 
+                if url == ident:
+                    ident_found = True
                 name = children[0].text
                 authors = children[1].text[1:-1]
                 add = [url, name, authors]
-                intersearch.append(add)
+                found.append(add)
+
+            if not ident_found and ident is not None:
+                found.append([ident, title, authors])
 
             act_authors = []
             for act in authors:
                 act_authors.append(act.split(" ")[-1])
 
-            self.log.info("Found %i matches"%len(intersearch))
+            self.log.info("Found %i matches"%len(found))
 
-            if len(intersearch) > self.prefs["max_search"]:
-                intersearch.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                intersearch = intersearch[:self.prefs['max_search']]
-
-            for tmp in intersearch:
-                found.append(tmp[0])
-
-            self.log.info(found)
+            if len(found) > self.prefs["max_search"]:
+                found.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                found = found[:self.prefs['max_search']]
 
         except Exception as e:
             self.log.exception(e)
             return as_unicode(e)
-#TODO: use identifiers
-#         if ident and found.count(ident) > 0:
-#             found.remove(ident)
-#             found.insert(0, ident)
-#
-#         found = found[:self.prefs['max_search']]
+
         try:
             workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
 
