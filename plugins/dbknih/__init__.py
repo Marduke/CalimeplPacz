@@ -250,28 +250,30 @@ class Dbknih(Source):
                 add = [url, name, authors]
                 intersearch.append(add)
 
-            self.log.info(intersearch)
+            act_authors = []
+            for act in authors:
+                act_authors.append(act.split(" ")[-1])
 
-            if len(intersearch) > self.prefs("max_search"):
-                pass
+            self.log.info("Found %i matches"%len(intersearch))
 
-#             #Books
-#             for book in entry(feed):
-#                 if book.startswith('knihy/') or book.startswith('povidky/'):
-#                     found.append(book)
-#             #Short stories
-#             for story in story(feed):
-#                 if story.startswith('knihy/') or story.startswith('povidky/'):
-#                     found.append(story)
+            if len(intersearch) > self.prefs["max_search"]:
+                intersearch.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                intersearch = intersearch[:self.prefs['max_search']]
+
+            for tmp in intersearch:
+                found.append(tmp[0])
+
+            self.log.info(found)
+
         except Exception as e:
-            self.log.exception('Failed to parse identify results: %s'%e)
+            self.log.exception(e)
             return as_unicode(e)
-
-        if ident and found.count(ident) > 0:
-            found.remove(ident)
-            found.insert(0, ident)
-
-        found = found[:self.prefs['max_search']]
+#TODO: use identifiers
+#         if ident and found.count(ident) > 0:
+#             found.remove(ident)
+#             found.insert(0, ident)
+#
+#         found = found[:self.prefs['max_search']]
         try:
             workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
 
@@ -290,7 +292,7 @@ class Dbknih(Source):
                 if not a_worker_is_alive:
                     break
         except Exception as e:
-            self.log.error(e)
+            self.log.exception(e)
 
         self.log.digg()
         return None
@@ -406,6 +408,16 @@ class Dbknih(Source):
         def keygen(mi):
             return MetadataCompareKeyGen(mi, self, title, authors,
                 identifiers)
+        return keygen
+
+    def prefilter_compare_gen(self, title=None, authors=None):
+        '''
+        Return a function that used to preOrdering if ser get more results
+        than we want to check. Filtering should found most relevant results
+        based on title and authors
+        '''
+        def keygen(data):
+            return PreFilterMetadataCompare(data, self, title, authors)
         return keygen
 
 if __name__ == '__main__': # tests

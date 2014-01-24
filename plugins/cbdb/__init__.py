@@ -173,7 +173,7 @@ class Cbdb(Source):
         if not query:
             self.log.error('Insufficient metadata to construct query')
             return
-
+#TODO: use identifiers
         br = self.browser
         try:
             self.log.info('download page search %s'%query)
@@ -216,9 +216,8 @@ class Cbdb(Source):
                     else:
                         tmp_entries.append(add, 0)
 
-                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-
                 if len(tmp_entries) > self.prefs['max_search']:
+                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
                     tmp_entries = tmp_entries[:self.prefs['max_search']]
 
                 for val in tmp_entries:
