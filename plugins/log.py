@@ -40,7 +40,10 @@ class Log(object):
 
     def parent_write(self, param, type):
         if isinstance(self.parent_log, Log):
-            self.parent_log.buffer += param
+            if self.parent_log.buffer is not None:
+                self.parent_log.buffer += param
+            else:
+                self.parent_log.info(param)
         else:
             self.parent_log.info(param)
 
