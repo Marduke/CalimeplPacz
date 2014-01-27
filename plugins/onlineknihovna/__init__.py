@@ -159,6 +159,7 @@ class OnlineKnihovna(Source):
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
 #         entry = XPath('//x:table[@id="listCategory"]/x:tbody/x:tr')
         entry = XPath('//x:table[@id="listCategory"]')
+        list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -355,7 +356,7 @@ class OnlineKnihovna(Source):
             return MetadataCompareKeyGen(mi, self, title, authors,
                 identifiers)
         return keygen
-
+#TODO: authors ordering, search detail too
     def prefilter_compare_gen(self, title=None, authors=None):
         '''
         Return a function that used to preOrdering if ser get more results
@@ -397,15 +398,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
-#                 [title_test('Dilvermoon', exact=False)]
-#             )
-#             ,
             (
                 {'identifiers':{}, #short story
-                'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
-                [title_test('Bestie uvnitř', exact=False)]
+                'title': 'Povídky', 'authors':['Jan Balabán']},
+                [title_test('Povídky', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
+#                 [title_test('Bestie uvnitř', exact=False)]
+#             )
         ])
