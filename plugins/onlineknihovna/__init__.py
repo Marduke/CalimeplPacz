@@ -84,7 +84,7 @@ class OnlineKnihovna(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:onlineknihvona', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'identifier:onlineknihvona', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -279,13 +279,11 @@ class OnlineKnihovna(Source):
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
         self.log = Log(self.name, log, False)
-        cached_urls = self.get_cached_cover_url(identifiers)
-        if not title:
-            return
-        if not cached_urls:
+        cached_url = self.get_cached_cover_url(identifiers)
+        if cached_url is None:
             self.log.info('No cached cover found, running identify')
             rq = Queue()
-            self.identify(log, rq, abort, title, authors, identifiers, timeout)
+            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
             if abort.is_set():
                 return
             results = []
@@ -297,18 +295,23 @@ class OnlineKnihovna(Source):
             results.sort(key=self.identify_results_keygen(
                 title=title, authors=authors, identifiers=identifiers))
             for mi in results:
-                cached_urls = self.get_cached_cover_url(mi.identifiers)
-                if cached_urls is not None:
+                cached_url = self.get_cached_cover_url(mi.identifiers)
+                if cached_url is not None:
                     break
-
-        if cached_urls is None:
+        if cached_url is None:
             log.info('No cover found')
             return
-        self.log.info("Covers:%s"%cached_urls)
+
         if abort.is_set():
             return
+        br = self.browser
+        self.log.info('Downloading cover from:%s'%cached_url)
+        try:
+            cdata = br.open_novisit(cached_url, timeout=timeout).read()
+            result_queue.put((self, cdata))
+        except:
+            self.log.exception('Failed to download cover from:', cached_url)
         self.log.digg()
-        self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
 
     def get_book_url(self, identifiers):
         '''

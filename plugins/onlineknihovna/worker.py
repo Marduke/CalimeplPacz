@@ -9,6 +9,7 @@ __docformat__ = 'restructuredtext en'
 from threading import Thread
 from calibre import as_unicode
 from calibre.utils.cleantext import clean_ascii_chars
+from calibre.utils.date import utc_tz
 from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
@@ -40,15 +41,15 @@ class Worker(Thread):
     def initXPath(self):
         self.xpath_title = '//div[@class="row"]/div[@class="span3 text-right" and starts-with(strong/p/text(),"Název")]/following-sibling::div[1]/p/text()'
         self.xpath_authors = '//div[@class="row"]/div[@class="span3 text-right" and starts-with(strong/p/text(),"Autor")]/following-sibling::div[1]/p/a/text()'
-        self.xpath_comments = '//div[@class="row"]/div[@class="span3 text-right" and starts-with(strong/p/text(),"Anotace")]/following-sibling::div[1]/div/text()'
-        self.xpath_stars = self.XPath('//x:span[@id="book_rating_text"]/text()')
+        self.xpath_comments = '//div[@class="span8"]/div/text()'
+        self.xpath_stars = '//img[@class="rating"]/@src'
         self.xpath_isbn = '//div[@class="row"]/div[@class="span3 text-right" and starts-with(strong/p/text(),"ISBN")]/following-sibling::div[1]/p/text()'
-        self.xpath_publisher = self.XPath('//x:span[@itemprop="isbn"]/preceding-sibling::text()')
-        self.xpath_tags = self.XPath('//x:td[@class="v_top"]/x:strong[2]/text()')
-        self.xpath_serie_condition = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:legend/text()')
-        self.xpath_serie = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:div/x:strong/text()')
-        self.xpath_serie_index = self.XPath('//x:div[@id="right"]/x:fieldset[1]//x:div[@class="right_book"]/x:a/@href')
-        self.xpath_cover = '//div[@class="row"]/div[@class="span3 text-right imag" and starts-with(strong/p/text(),"Obrázek")]/following-sibling::div[1]/a/p/img/@src'
+        self.xpath_publisher = '//a[starts-with(@href, "/book/search/publisher")]/text()'
+        self.xpath_pubdate = '//div[@class="row"]/div[@class="span3 text-right" and starts-with(strong/p/text(), "Datum")]/following-sibling::div[1]/p/text()'
+        self.xpath_tags = '//a[starts-with(@href, "/book/category/")]/text()'
+        self.xpath_serie = '//a[starts-with(@href, "/book/search/series%")]/text()'
+        self.xpath_serie_index = '//a[starts-with(@href, "/book/search/series_no%")]/text()'
+        self.xpath_cover = '//div[@class="span5 imag"]/a/p/img/@src'
 
     def run(self):
         self.initXPath()
@@ -62,7 +63,7 @@ class Worker(Thread):
             except Exception as e:
                 self.log.exception(e)
         else:
-            self.log.info('Download metadata failed for: %s'%self.ident)
+            self.log.exception('Download metadata failed for: %s'%self.ident)
 
         self.log.digg()
 
@@ -72,7 +73,8 @@ class Worker(Thread):
         comments = self.parse_comments(xml_detail)
         rating = self.parse_rating(xml_detail)
         isbn = self.parse_isbn(xml_detail)
-        publisher, pub_year = self.parse_publisher(xml_detail)
+        publisher = self.parse_publisher(xml_detail)
+        pub_year = self.parse_pubdate(xml_detail)
         tags = self.parse_tags(xml_detail)
         serie, serie_index = self.parse_serie(xml_detail)
         cover = self.parse_cover(xml_detail)
@@ -130,14 +132,11 @@ class Worker(Thread):
             return None
 
     def parse_rating(self, xml_detail):
-        tmp = self.xpath_stars(xml_detail)
+        tmp = xml_detail.xpath(self.xpath_stars)
         if len(tmp) > 0:
-            stars_ = int(tmp[0].replace(' %',''))
-            rating = int(stars_ / 20)
-            if stars_ % 20 > 0:
-                rating += 1
+            rating = float(re.search("\d", tmp[0]).group())
             self.log.info('Found rating:%s'%rating)
-            return rating
+            return rating+1
         else:
             self.log.info('Found rating:None')
             return None
@@ -151,32 +150,52 @@ class Worker(Thread):
             self.log.info('Found ISBN:None')
             return None
 
-    def parse_publisher(self, xml_more_info):
-        tmp = self.xpath_publisher(xml_more_info)
+    def parse_publisher(self, xml_detail):
+        tmp = xml_detail.xpath(self.xpath_publisher)
         if len(tmp) > 0:
-            data = tmp[-2].strip().split(' - ')
-            if len(data) == 2:
-                self.log.info('Found publisher:%s'%data[0])
-                self.log.info('Found pub date:%s'%data[1])
-                data[1] = self.prepare_date(int(data[1]))
-                return data
+            self.log.info('Found publisher:%s'%tmp[0])
+            return tmp[0]
+        else:
+            self.log.info('Found publisher:None')
+            return (None, None)
 
-        self.log.info('Found publisher:None')
-        self.log.info('Found pub date:None')
-        return (None, None)
+    def parse_pubdate(self, xml_detail):
+        tmp = xml_detail.xpath(self.xpath_pubdate)
+        if len(tmp) > 0:
+            dates = tmp[0].split(". ")
+            self.log.info('Found pubdate:%s'%tmp[0])
+            return datetime.datetime(int(dates[2]), int(dates[1]), int(dates[0]), tzinfo=utc_tz)
+        else:
+            self.log.info('Found pubdate:None')
+            return (None, None)
 
     def parse_tags(self, xml_detail):
-        tmp = self.xpath_tags(xml_detail)
+        tmp = xml_detail.xpath(self.xpath_tags)
         if len(tmp) > 0:
-            result = tmp[0].split(' / ')
-            self.log.info('Found tags:%s'%result)
-            return result
+            self.log.info('Found tags:%s'%tmp)
+            return tmp
         else:
             self.log.info('Found tags:None')
             return None
 
     def parse_serie(self, xml_detail):
-        tmp = self.xpath_serie_condition(xml_detail)
+        tmp = xml_detail.xpath(self.xpath_serie)
+        if len(tmp) > 0:
+            serie_name = tmp[0]
+            serie_index = 0
+            tmp2 = xml_detail.xpath(self.xpath_serie_index)
+            if len(tmp2) > 0:
+                serie_index = float(tmp2[0])
+
+            self.log.info('Found serie:%s[%d]'%(serie_name, serie_index))
+            return [serie_name, serie_index]
+
+
+        else:
+            self.log.info('Found serie:None')
+            return [None, None]
+
+
         if len(tmp) == 0 or not tmp[0] == 'Série':
             self.log.info('Found serie:None')
             return [None, None]
@@ -201,7 +220,6 @@ class Worker(Thread):
 
     def parse_cover(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_cover)
-        self.log.info(tmp)
         if len(tmp) > 0:
             self.log.info('Found covers:%s'%tmp[0])
             return tmp[0]
@@ -224,8 +242,3 @@ class Worker(Thread):
         except Exception as e:
             self.log.exception('Failed to make download : %r'%query)
             return None
-
-    def prepare_date(self,year):
-        from calibre.utils.date import utc_tz
-        return datetime.datetime(year, 1, 1, tzinfo=utc_tz)
-

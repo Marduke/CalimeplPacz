@@ -34,11 +34,9 @@ Bookfan.eu
 - [ ] baila.cz - 0%
 - [ ] kdb.cz - 0%
 - [ ] leganto.cz - 0%
-- [ ] onlineknihovna.cz - 0%
+- [ ] onlineknihovna.cz - 90% - vícestránkové procházení výsledkù
 - [ ] knihi.cz - 0%
 - [ ] pitaval.cz - 0%
-
-pozn.: 90% => chybí configurace
 
 ##Detailní funkènost
 ### Vše
@@ -47,6 +45,9 @@ pozn.: 90% => chybí configurace
 - kategorie == tagy
 - obalka
 - serie vè. indexu
+- nakladatel
+- rok vydání
+- hodnocení (1-5 hvìzdièek)
 
 ### Databazeknih
 - obálka 100x166 - 100x171
@@ -62,3 +63,7 @@ pozn.: 90% => chybí configurace
 - obálka cca 141x210 a obèas vìtší
 - pokud je více obálek vrací dle max_cover option, výchozí hodnota je 5 
 - série index je nespolehlivý, je udáván pouze seøezený seznam knih v sérii
+
+### Onlineknihovna
+- obálky 477x756 a vìtší
+- cca 1300 knih (pouze?)
