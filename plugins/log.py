@@ -33,10 +33,11 @@ class Log(object):
         self.__inner_log(param, type="error")
 
     def exception(self, param):
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        i, j = (traceback.extract_tb(exc_traceback, 1))[0][0:2]
-        k = (traceback.format_exception_only(exc_type, exc_value))[0]
-        self.__inner_log('%son %s(%s)'%(k,i,j), type="exception")
+        traceback.print_exc()
+#         exc_type, exc_value, exc_traceback = sys.exc_info()
+#         i, j = (traceback.extract_tb(exc_traceback, 1))[0][0:2]
+#         k = (traceback.format_exception_only(exc_type, exc_value))[0]
+#         self.__inner_log('%son %s(%s)'%(k,i,j), type="exception")
 
     def parent_write(self, param, type):
         if isinstance(self.parent_log, Log):

@@ -150,9 +150,9 @@ class OnlineKnihovna(Source):
         self.log = Log(self.name, log, False)
         self.devel.setLog(log)
 #TODO: vsude, pokud se stahuje obalka sama, brat na parsovavani pouze ident, pokud neni vse
+#TODO: logging rework
         found = []
         xml = None
-        detail_ident = None
 
         #test previous found first
         ident = identifiers.get(self.name, None)
@@ -160,8 +160,7 @@ class OnlineKnihovna(Source):
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
 
-        query = self.create_query(title=title, authors=authors,
-                identifiers=identifiers)
+        query = self.create_query(title=title)
         if not query:
             self.log.error('Insufficient metadata to construct query')
             return
@@ -184,15 +183,15 @@ class OnlineKnihovna(Source):
 
             more_pages = list(feed)
             #more pages with search results
-            tmp_entries = Queue()
+            que = Queue()
             if ident is not None:
-                tmp_entries += ["-%i"%ident, title, authors]
+                que += ["-%i"%ident, title, authors]
 
             if len(more_pages) > 5:
                 page_max = int(more_pages[-1].text)
                 sworkers = []
-                sworkers += [SearchWorker(tmp_entries, br, timeout, log, self.devel, 1, ident, feed, title)]
-                sworkers += [SearchWorker(tmp_entries, br, timeout, log, self.devel, (i + 1), ident, None, title) for i in range(2,page_max)]
+                sworkers.append(SearchWorker(que, self, timeout, log, self.devel, 1, ident, feed, title))
+                sworkers.extend([SearchWorker(que, self, timeout, log, self.devel, (i + 1), ident, None, title) for i in range(1,page_max)])
 
                 for w in sworkers:
                     w.start()
@@ -213,6 +212,13 @@ class OnlineKnihovna(Source):
             for act in authors:
                 act_authors.append(act.split(" ")[-1])
 
+            tmp_entries = []
+            while True:
+                try:
+                    tmp_entries.append(que.get_nowait())
+                except Empty:
+                    break
+
             if len(tmp_entries) > self.prefs['max_search']:
                 tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
                 tmp_entries = tmp_entries[:self.prefs['max_search']]
@@ -224,8 +230,6 @@ class OnlineKnihovna(Source):
 
 #TODO: use python logging http://blog.tplus1.com/blog/2007/09/28/the-python-logging-module-is-much-better-than-print-statements/ or like next row
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             self.log.exception('Failed to parse identify results')
             return as_unicode(e)
 
@@ -256,7 +260,7 @@ class OnlineKnihovna(Source):
         self.log.digg()
         return None
 
-    def create_query(self, title=None, authors=None, identifiers={}):
+    def create_query(self, title=None, number=1):
         '''
         create url for HTTP request
         '''
@@ -269,9 +273,14 @@ class OnlineKnihovna(Source):
             q = q.encode('utf-8')
         if not q:
             return None
-        return self.BASE_URL+'book/search/textSearch/?'+urlencode({
-            'text':q
-        })
+        if number == 1:
+            return self.BASE_URL+'book/search/textSearch/?'+urlencode({
+                'text':q
+            })
+        else:
+            return '%sbook/search/textSearch/%s?'%(self.BASE_URL, number)+urlencode({
+                'text':q
+            })
 
     def get_cached_cover_url(self, identifiers):
         '''
