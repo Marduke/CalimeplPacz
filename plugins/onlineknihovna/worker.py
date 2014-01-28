@@ -112,8 +112,12 @@ class Worker(Thread):
     def parse_authors(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_authors)
         if len(tmp) > 0:
-            self.log.info('Found authors:%s'%tmp)
-            return tmp
+            auths = []
+            for au in tmp:
+                spl = au.split(", ")
+                auths.append("%s %s"%(spl[1],spl[0]))
+            self.log.info('Found authors:%s'%auths)
+            return auths
         else:
             self.log.info('Found authors:None')
             return None
