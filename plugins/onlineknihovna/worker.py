@@ -123,7 +123,6 @@ class Worker(Thread):
             return None
 
     def parse_comments(self, xml_detail):
-        #TODO: wuut
         tmp = xml_detail.xpath(self.xpath_comments)
         self.log.info(tmp)
         if len(tmp) > 0:

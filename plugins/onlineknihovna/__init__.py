@@ -7,7 +7,7 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-import re, time
+import re, time, sys
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.utils.cleantext import clean_ascii_chars
@@ -17,10 +17,11 @@ from lxml.html import fromstring
 from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
-from cbdb.worker import Worker #REPLACE from calibre_plugins.onlineknihovna.worker import Worker
+from onlineknihovna.worker import Worker #REPLACE from calibre_plugins.onlineknihovna.worker import Worker
 from devel import Devel #REPLACE from calibre_plugins.onlineknihovna.devel import Devel
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.onlineknihovna.metadata_compare import MetadataCompareKeyGen
 from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.onlineknihovna.pre_filter_compare import PreFilterMetadataCompare
+from onlineknihovna.search_worker import SearchWorker #REPLACE from calibre_plugins.onlineknihovna.search_worker import SearchWorker
 from log import Log #REPLACE from calibre_plugins.onlineknihovna.log import Log
 
 class OnlineKnihovna(Source):
@@ -148,7 +149,7 @@ class OnlineKnihovna(Source):
 
         self.log = Log(self.name, log, False)
         self.devel.setLog(log)
-
+#TODO: vsude, pokud se stahuje obalka sama, brat na parsovavani pouze ident, pokud neni vse
         found = []
         xml = None
         detail_ident = None
@@ -157,8 +158,6 @@ class OnlineKnihovna(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-#         entry = XPath('//x:table[@id="listCategory"]/x:tbody/x:tr')
-        entry = XPath('//x:table[@id="listCategory"]')
         list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
 
         query = self.create_query(title=title, authors=authors,
@@ -183,27 +182,36 @@ class OnlineKnihovna(Source):
 
             feed = fromstring(clean, parser=parser)
 
-            entries = entry(feed)
-            entries = feed.xpath('//table[@id="listCategory"]//tr')
+            more_pages = list(feed)
+            #more pages with search results
+            tmp_entries = Queue()
+            if ident is not None:
+                tmp_entries += ["-%i"%ident, title, authors]
+
+            if len(more_pages) > 5:
+                page_max = int(more_pages[-1].text)
+                sworkers = []
+                sworkers += [SearchWorker(tmp_entries, br, timeout, log, self.devel, 1, ident, feed, title)]
+                sworkers += [SearchWorker(tmp_entries, br, timeout, log, self.devel, (i + 1), ident, None, title) for i in range(2,page_max)]
+
+                for w in sworkers:
+                    w.start()
+                    time.sleep(0.1)
+
+                while not abort.is_set():
+                    a_worker_is_alive = False
+                    for w in sworkers:
+                        w.join(0.2)
+                        if abort.is_set():
+                            break
+                        if w.is_alive():
+                            a_worker_is_alive = True
+                    if not a_worker_is_alive:
+                        break
+
             act_authors = []
             for act in authors:
                 act_authors.append(act.split(" ")[-1])
-
-            ident_found = False
-            tmp_entries = []
-            for book_ref in entries[1:]:
-                title = book_ref.xpath('.//a[starts-with(@href, "/book/") and not(starts-with(@href, "/book/search"))]')
-                authors = book_ref.xpath('.//a[starts-with(@href, "/book/search/authors")]/text()')
-                auths = [] #authors surnames
-                for i in authors:
-                    auths.append(i.split(",")[0])
-                add = (title[1].get("href"), title[1].text, auths)
-                if title == ident:
-                    ident_found = True
-                tmp_entries.append(add)
-
-            if not ident_found and ident is not None:
-                tmp_entries.append(["-%i"%ident, title, authors],)
 
             if len(tmp_entries) > self.prefs['max_search']:
                 tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
@@ -214,7 +222,10 @@ class OnlineKnihovna(Source):
 
             self.log.info('Found %i matches'%len(found))
 
+#TODO: use python logging http://blog.tplus1.com/blog/2007/09/28/the-python-logging-module-is-much-better-than-print-statements/ or like next row
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.log.exception('Failed to parse identify results')
             return as_unicode(e)
 
@@ -356,7 +367,7 @@ class OnlineKnihovna(Source):
             return MetadataCompareKeyGen(mi, self, title, authors,
                 identifiers)
         return keygen
-#TODO: authors ordering, search detail too
+
     def prefilter_compare_gen(self, title=None, authors=None):
         '''
         Return a function that used to preOrdering if ser get more results
@@ -394,8 +405,8 @@ if __name__ == '__main__': # tests
 #            ,
 #             (
 #                 {'identifiers':{}, #short story
-#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-#                 [title_test('Meč osudu', exact=False)]
+#                 'title': 'Adventní kletba', 'authors':['Vlastimil Vondruška']},
+#                 [title_test('Adventní kletba', exact=False)]
 #             )
 #             ,
             (
