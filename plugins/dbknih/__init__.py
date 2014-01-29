@@ -17,7 +17,6 @@ from lxml.html import fromstring
 from functools import partial
 from Queue import Queue, Empty
 from dbknih.worker import Worker #REPLACE from calibre_plugins.dbknih.worker import Worker
-from devel import Devel #REPLACE from calibre_plugins.dbknih.devel import Devel
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.dbknih.metadata_compare import MetadataCompareKeyGen
 from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.dbknih.pre_filter_compare import PreFilterMetadataCompare
 from log import Log #REPLACE from calibre_plugins.dbknih.log import Log
@@ -27,11 +26,6 @@ class Dbknih(Source):
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }
-
-    '''
-    devel dir
-    '''
-    devel = Devel(r'\tmp\devel\dbknih', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -174,8 +168,7 @@ class Dbknih(Source):
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
 
-        self.log = Log(self.name, log, False)
-        self.devel.setLog(log)
+        self.log = Log(self.name, log)
         found = []
 
         #validate ident
@@ -191,12 +184,12 @@ class Dbknih(Source):
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
         if not query:
-            self.log.error('Insufficient metadata to construct query')
+            self.log.exception('Insufficient metadata to construct query')
             return
 
         br = self.browser
         try:
-            self.log.info('download page search %s'%query)
+            self.log('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
 
             #following block fix html, some people dont use html escape on every &...
@@ -213,9 +206,6 @@ class Dbknih(Source):
         try:
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
-
-            self.devel.log_file('','search',  clean)
-
             feed = fromstring(clean,  parser=parser)
 #             if len(parser.error_log) > 0: #some errors while parsing
 #                 self.log.info('while parsing page occus some errors:')
@@ -259,7 +249,7 @@ class Dbknih(Source):
             for act in authors:
                 act_authors.append(act.split(" ")[-1])
 
-            self.log.info("Found %i matches"%len(found))
+            self.log("Found %i matches"%len(found))
 
             if len(found) > self.prefs["max_search"]:
                 found.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
@@ -270,7 +260,7 @@ class Dbknih(Source):
             return as_unicode(e)
 
         try:
-            workers = [Worker(ident, result_queue, br, log, i, self, self.devel) for i, ident in enumerate(found)]
+            workers = [Worker(ident, result_queue, br, log, i, self) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -289,7 +279,6 @@ class Dbknih(Source):
         except Exception as e:
             self.log.exception(e)
 
-        self.log.digg()
         return None
 
     def create_query(self, title=None, authors=None, identifiers={}):
@@ -326,10 +315,10 @@ class Dbknih(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
-        self.log = Log(self.name, log, False)
+        self.log = Log(self.name, log)
         cached_url = self.get_cached_cover_url(identifiers)
         if cached_url is None:
-            self.log.info('No cached cover found, running identify')
+            self.log('No cached cover found, running identify')
             rq = Queue()
             self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
             if abort.is_set():
@@ -353,14 +342,12 @@ class Dbknih(Source):
         if abort.is_set():
             return
         br = self.browser
-        self.log.info('Downloading cover from:%s'%cached_url)
+        self.log('Downloading cover from:%s'%cached_url)
         try:
             cdata = br.open_novisit(cached_url, timeout=timeout).read()
             result_queue.put((self, cdata))
         except:
             self.log.exception('Failed to download cover from:', cached_url)
-        self.log.digg()
-
 
     def get_book_url(self, identifiers):
         '''
