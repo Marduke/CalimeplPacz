@@ -13,7 +13,7 @@ from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
-from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
+from log import Log #REPLACE from calibre_plugins.legie.log import Log
 import datetime, re
 
 #Single Thread to process one page of searched list
@@ -38,7 +38,7 @@ class Worker(Thread):
         if xml is not None:
             self.number = int(ident)
         else:
-            self.number = int(self.ident.split('-')[1])
+            self.number = int(self.ident.split('-')[0].split('/')[1])
 
         self.log = Log("worker %i"%self.number, log)
 

@@ -159,7 +159,7 @@ class Cbdb(Source):
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
-        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
+        entry = XPath('//x:tr[@class="suda" or @class="licha"]')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -170,37 +170,33 @@ class Cbdb(Source):
         br = self.browser
         #books
         try:
-            self.log('download book page search %s'%query)
+            self.log('download book page search %s'%query[0])
             rawBooks = br.open(query[0], timeout=timeout).read().strip()
+            try:
+                parser = etree.XMLParser(recover=True)
+                clean = clean_ascii_chars(rawBooks)
+                feedBooks = fromstring(clean, parser=parser)
+            except Exception as e:
+                self.log.exception('Failed to parse xpath')
         except Exception as e:
-            self.log.exception('Failed to make identify query: %r'%query)
-            return as_unicode(e)
-
-        try:
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(rawBooks)
-            feedBooks = fromstring(clean, parser=parser)
-        except Exception as e:
-            self.log.exception('Failed to parse xpath')
+            self.log.exception('Failed to make identify query: %r'%query[0])
 
         #stories
         try:
-            self.log('download stories page search %s'%query)
+            self.log('download stories page search %s'%query[1])
             rawstories = br.open(query[1], timeout=timeout).read().strip()
+            try:
+                parser = etree.XMLParser(recover=True)
+                clean = clean_ascii_chars(rawstories)
+                feedStories = fromstring(clean, parser=parser)
+            except Exception as e:
+                self.log.exception('Failed to parse xpath')
         except Exception as e:
-            self.log.exception('Failed to make identify query: %r'%query)
-            return as_unicode(e)
-
-        try:
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(rawstories)
-            feedStories = fromstring(clean, parser=parser)
-        except Exception as e:
-            self.log.exception('Failed to parse xpath')
+            self.log.exception('Failed to make identify query: %r'%query[1])
 
         try:
             entries = entry(feedBooks)
-            entries.extends(feedStories)
+            entries.extend(entry(feedStories))
 #             if len(entries) == 0:
 #                 xml = feed
 #                 detail_ident = detail_test(feed)[0].split("-")[-1]
@@ -215,18 +211,17 @@ class Cbdb(Source):
             ident_found = False
             tmp_entries = []
             for book_ref in entries:
-                ch = book_ref.getChildren()
-                title_tag = ch[0].getChildren()[0]
-                author_tag = ch[1].getChildren()
-
-#                 tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-#                 auths = [] #authors surnames
-#                 for i in (tmp[1:]):
-#                     auths.append(i.text.split(" ")[-1])
-#                 add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-#                 if tmp[0].get('href').split('-')[1] == ident:
-#                     ident_found = True
-#                 tmp_entries.append(add)
+                ch = book_ref.getchildren()
+                title_tag = ch[0].getchildren()[0]
+                author_tag = ch[1].getchildren()
+                if len(author_tag) > 0:
+                    author = author_tag[0].text.split(",")[0].strip()
+                else:
+                    author = "Kolektiv"
+                if title_tag.get('href').split('-')[0] == ident:
+                    ident_found = True
+                add = (title_tag.get('href'), title_tag.text, author)
+                tmp_entries.append(add)
 
             if not ident_found and ident is not None:
                 tmp_entries.append(["-%i"%ident, title, authors],)
@@ -246,6 +241,7 @@ class Cbdb(Source):
             found.remove(ident)
             found.insert(0, ident)
 
+        self.log(found)
         try:
             workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
