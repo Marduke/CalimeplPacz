@@ -28,13 +28,13 @@ Jelikož píšu v Pydev tak mi pøi více souborech v pluginu hlásí prostøedí neznámé
 Bookfan.eu
 
 ##Plan:
-- [x] Databazeknih.cz - 100% v1.0.0
-- [x] cbdb.cz - 100% v1.0.0
+- [x] Databazeknih.cz - v1.0.0
+- [x] cbdb.cz - v1.0.0
 - [ ] legie.cz - 0%
 - [ ] baila.cz - 0%
 - [ ] kdb.cz - 0%
 - [ ] leganto.cz - 0%
-- [ ] onlineknihovna.cz - 90% - vícestránkové procházení výsledkù
+- [x] onlineknihovna.cz - v1.0.0
 - [ ] knihi.cz - 0%
 - [ ] pitaval.cz - 0%
 
@@ -51,7 +51,6 @@ Bookfan.eu
 
 ### Databazeknih
 - obálka 100x166 - 100x171
-- série
 - rozlišení povídky od knihy, pokud je detekována povídka je pøidán tag Povídka
 - tagy serveru(neplést s kategoriemi, server to rozlišuje) se pøidávají do tagù knihy ke kategoriím
 - výpis povídek a tag Sbírka povídek pokud se jedná o povídkovou sbírku
@@ -67,3 +66,9 @@ Bookfan.eu
 ### Onlineknihovna
 - obálky 477x756 a vìtší
 - cca 1300 knih (pouze?)
+
+### Legie
+- obálky 150x230
+- série vèetnì nezaøazených knih
+- informace o svìtì knihy
+- detailní výpis ocenìní knihy 

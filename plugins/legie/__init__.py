@@ -17,10 +17,10 @@ from lxml.html import fromstring
 from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
-from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
-from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen
-from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.pre_filter_compare import PreFilterMetadataCompare
-from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
+from legie.worker import Worker #REPLACE from calibre_plugins.legie.worker import Worker
+from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.legie.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.legie.pre_filter_compare import PreFilterMetadataCompare
+from log import Log #REPLACE from calibre_plugins.legie.log import Log
 
 class Cbdb(Source):
 
@@ -33,12 +33,12 @@ class Cbdb(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://www.cbdb.cz/'
+    BASE_URL = 'http://www.legie.info/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'cbdb'
+    name = 'Legie'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -48,7 +48,7 @@ class Cbdb(Source):
     '''
     A short string describing what this plugin does
     '''
-    description = u'Download metadata and cover from cbdb.cz'
+    description = u'Download metadata and cover from legie.info'
 
     '''
     The author of this plugin
@@ -78,7 +78,7 @@ class Cbdb(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:cbdb', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:legie', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -105,13 +105,13 @@ class Cbdb(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
-               Option('max_covers', 'number', 5,
-                      'Maximum obálek',
-                      'Maximum obálek které se budou stahovat'),
+               Option('world_tag', 'bool', True,
+                      'stahovat tag světa knihy',
+                      'stahovat tag označující svět, ve kterém se kniha odehrává'),
 
-               Option('serie_index', 'bool', True,
-                      'Pozice v sérii',
-                      'Cbdb neudává pozici v sérii, pouze vypisuje seznam knih v sérii ve správném pořadí, takže pokud některá např. chybí jsou pozice rozhozené, je zde možnost tuto nespolehlivou vlastnost vypnout. Stále se ovšem bude zobrazovat alespoň informace o názvu série'),
+               Option('world_tag_prefix', 'string', '_svět:',#TODO: empty it before release
+                      'prefix tagu světa knihy',
+                      'prefix tagu označujícího svět, ve kterém se kniha odehrává'),
     )
 
     '''
@@ -158,8 +158,8 @@ class Cbdb(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
         detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
+        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -168,53 +168,75 @@ class Cbdb(Source):
             return
 
         br = self.browser
+        #books
         try:
-            self.log('download page search %s'%query)
-            raw = br.open(query, timeout=timeout).read().strip()
-            #fix, time limited action, broke HTML
-            raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
+            self.log('download book page search %s'%query)
+            rawBooks = br.open(query[0], timeout=timeout).read().strip()
         except Exception as e:
             self.log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
 
         try:
             parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(raw)
-            feed = fromstring(clean, parser=parser)
+            clean = clean_ascii_chars(rawBooks)
+            feedBooks = fromstring(clean, parser=parser)
+        except Exception as e:
+            self.log.exception('Failed to parse xpath')
 
-            entries = entry(feed)
-            if len(entries) == 0:
-                xml = feed
-                detail_ident = detail_test(feed)[0].split("-")[-1]
-                if ident is not None and detail_ident != ident:
-                    found.append(ident)
-            else:
-                self.log('Found %i matches'%len(entries))
-                act_authors = []
-                for act in authors:
-                    act_authors.append(act.split(" ")[-1])
+        #stories
+        try:
+            self.log('download stories page search %s'%query)
+            rawstories = br.open(query[1], timeout=timeout).read().strip()
+        except Exception as e:
+            self.log.exception('Failed to make identify query: %r'%query)
+            return as_unicode(e)
 
-                ident_found = False
-                tmp_entries = []
-                for book_ref in entries:
-                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-                    auths = [] #authors surnames
-                    for i in (tmp[1:]):
-                        auths.append(i.text.split(" ")[-1])
-                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-                    if tmp[0].get('href').split('-')[1] == ident:
-                        ident_found = True
-                    tmp_entries.append(add)
+        try:
+            parser = etree.XMLParser(recover=True)
+            clean = clean_ascii_chars(rawstories)
+            feedStories = fromstring(clean, parser=parser)
+        except Exception as e:
+            self.log.exception('Failed to parse xpath')
 
-                if not ident_found and ident is not None:
-                    tmp_entries.append(["-%i"%ident, title, authors],)
+        try:
+            entries = entry(feedBooks)
+            entries.extends(feedStories)
+#             if len(entries) == 0:
+#                 xml = feed
+#                 detail_ident = detail_test(feed)[0].split("-")[-1]
+#                 if ident is not None and detail_ident != ident:
+#                     found.append(ident)
+#             else:
+            self.log('Found %i matches'%len(entries))
+            act_authors = []
+            for act in authors:
+                act_authors.append(act.split(" ")[-1])
 
-                if len(tmp_entries) > self.prefs['max_search']:
-                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                    tmp_entries = tmp_entries[:self.prefs['max_search']]
+            ident_found = False
+            tmp_entries = []
+            for book_ref in entries:
+                ch = book_ref.getChildren()
+                title_tag = ch[0].getChildren()[0]
+                author_tag = ch[1].getChildren()
 
-                for val in tmp_entries:
-                    found.append(val[0])
+#                 tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+#                 auths = [] #authors surnames
+#                 for i in (tmp[1:]):
+#                     auths.append(i.text.split(" ")[-1])
+#                 add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
+#                 if tmp[0].get('href').split('-')[1] == ident:
+#                     ident_found = True
+#                 tmp_entries.append(add)
+
+            if not ident_found and ident is not None:
+                tmp_entries.append(["-%i"%ident, title, authors],)
+
+            if len(tmp_entries) > self.prefs['max_search']:
+                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                tmp_entries = tmp_entries[:self.prefs['max_search']]
+
+            for val in tmp_entries:
+                found.append(val[0])
 
         except Exception as e:
             self.log.exception('Failed to parse identify results')
@@ -263,9 +285,13 @@ class Cbdb(Source):
             q = q.encode('utf-8')
         if not q:
             return None
-        return self.BASE_URL+'hledat.php?'+urlencode({
-            'hledat':q
-        })
+        result = []
+        for txt in ["knihy", "povidky"]:
+            result.append(self.BASE_URL+'index.php?'+urlencode({
+                'search_text':q,
+                'cast':txt}))
+
+        return result
 
     def get_cached_cover_url(self, identifiers):
         '''
@@ -399,15 +425,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
-#                 [title_test('Dilvermoon', exact=False)]
-#             )
-#             ,
             (
                 {'identifiers':{}, #short story
                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
                 [title_test('Vlk', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Lovci kostí', 'authors':['Steven Erikson']},
+#                 [title_test('Lovci kostí', exact=False)]
+#             )
         ])
