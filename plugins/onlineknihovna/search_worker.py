@@ -15,13 +15,12 @@ from log import Log #REPLACE from calibre_plugins.onlineknihovna.log import Log
 
 #Single Thread to process one page of search page
 class SearchWorker(Thread):
-    def __init__(self, queue, plugin, timeout, log, devel, number, ident, xml, title):
+    def __init__(self, queue, plugin, timeout, log, number, ident, xml, title):
         Thread.__init__(self)
         self.queue = queue
         self.plugin = plugin
         self.timeout = timeout
-        self.log = Log("search worker %i"%number, log, False)
-        self.devel = devel
+        self.log = Log("search worker %i"%number, log)
         self.number = number
         self.identif = ident
         self.xml = xml
@@ -32,9 +31,9 @@ class SearchWorker(Thread):
             raw = None
             url = None
             try:
-                self.log.info([self.title, self.number])
+                self.log([self.title, self.number])
                 url = self.plugin.create_query(self.title, self.number)
-                self.log.info('download page search %s'%url)
+                self.log('download page search %s'%url)
                 raw = self.plugin.browser.open(url, timeout=self.timeout).read().strip()
             except Exception as e:
                 self.log.exception('Failed to make identify query: %r'%url)
@@ -44,15 +43,11 @@ class SearchWorker(Thread):
                 try:
                     parser = etree.XMLParser(recover=True)
                     clean = clean_ascii_chars(raw)
-
-                    self.devel.log_file('','search %s'%self.number, clean)
-
                     self.xml = fromstring(clean, parser=parser)
                 except Exception as e:
                     self.log.exception('Failed to parse xml for url: %s'%self.url)
 
         self.parse()
-        self.log.digg()
 
     def parse(self):
         entries = self.xml.xpath('//table[@id="listCategory"]//tr')

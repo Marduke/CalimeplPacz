@@ -26,17 +26,17 @@ class Worker(Thread):
     #int id
     number = None
 
-    def __init__(self, ident, result_queue, browser, log, relevance, plugin, devel, timeout=20):
+    def __init__(self, ident, result_queue, browser, log, relevance, plugin, timeout=20):
         Thread.__init__(self)
         self.daemon = True
         self.ident, self.result_queue = ident, result_queue
         self.browser = browser.clone_browser()
-        self.devel, self.relevance = devel, relevance
+        self.relevance = relevance
         self.plugin, self.timeout = plugin, timeout
         self.cover_url = self.isbn = None
         self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
         self.number = int(self.ident.split('/')[-1])
-        self.log = Log("worker %i"%self.number, log, True)
+        self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
         self.xpath_title = '//div[@class="row"]/div[@class="span3 text-right" and starts-with(strong/p/text(),"Název")]/following-sibling::div[1]/p/text()'
@@ -64,8 +64,6 @@ class Worker(Thread):
                 self.log.exception(e)
         else:
             self.log.exception('Download metadata failed for: %s'%self.ident)
-
-        self.log.digg()
 
     def parse(self, xml_detail):
         title = self.parse_title(xml_detail)
@@ -103,10 +101,10 @@ class Worker(Thread):
     def parse_title(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_title)
         if len(tmp) > 0:
-            self.log.info('Found title:%s'%tmp[0])
+            self.log('Found title:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log.info('Found title:None')
+            self.log('Found title:None')
             return None
 
     def parse_authors(self, xml_detail):
@@ -116,69 +114,68 @@ class Worker(Thread):
             for au in tmp:
                 spl = au.split(", ")
                 auths.append("%s %s"%(spl[1],spl[0]))
-            self.log.info('Found authors:%s'%auths)
+            self.log('Found authors:%s'%auths)
             return auths
         else:
-            self.log.info('Found authors:None')
+            self.log('Found authors:None')
             return None
 
     def parse_comments(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_comments)
-        self.log.info(tmp)
         if len(tmp) > 0:
-            self.log.info(tmp[0])
+            self.log(tmp[0])
             result = "".join(tmp).strip()
-            self.log.info('Found comment:%s'%result)
+            self.log('Found comment:%s'%result)
             return result
         else:
-            self.log.info('Found comment:None')
+            self.log('Found comment:None')
             return None
 
     def parse_rating(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_stars)
         if len(tmp) > 0:
             rating = float(re.search("\d", tmp[0]).group())
-            self.log.info('Found rating:%s'%rating)
+            self.log('Found rating:%s'%rating)
             return rating+1
         else:
-            self.log.info('Found rating:None')
+            self.log('Found rating:None')
             return None
 
     def parse_isbn(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_isbn)
         if len(tmp) > 0:
-            self.log.info('Found ISBN:%s'%tmp[0])
+            self.log('Found ISBN:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log.info('Found ISBN:None')
+            self.log('Found ISBN:None')
             return None
 
     def parse_publisher(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_publisher)
         if len(tmp) > 0:
-            self.log.info('Found publisher:%s'%tmp[0])
+            self.log('Found publisher:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log.info('Found publisher:None')
+            self.log('Found publisher:None')
             return (None, None)
 
     def parse_pubdate(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_pubdate)
         if len(tmp) > 0:
             dates = tmp[0].split(". ")
-            self.log.info('Found pubdate:%s'%tmp[0])
+            self.log('Found pubdate:%s'%tmp[0])
             return datetime.datetime(int(dates[2]), int(dates[1]), int(dates[0]), tzinfo=utc_tz)
         else:
-            self.log.info('Found pubdate:None')
+            self.log('Found pubdate:None')
             return (None, None)
 
     def parse_tags(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_tags)
         if len(tmp) > 0:
-            self.log.info('Found tags:%s'%tmp)
+            self.log('Found tags:%s'%tmp)
             return tmp
         else:
-            self.log.info('Found tags:None')
+            self.log('Found tags:None')
             return None
 
     def parse_serie(self, xml_detail):
@@ -190,22 +187,21 @@ class Worker(Thread):
             if len(tmp2) > 0:
                 serie_index = float(tmp2[0])
 
-            self.log.info('Found serie:%s[%d]'%(serie_name, serie_index))
+            self.log('Found serie:%s[%d]'%(serie_name, serie_index))
             return [serie_name, serie_index]
 
-
         else:
-            self.log.info('Found serie:None')
+            self.log('Found serie:None')
             return [None, None]
 
 
         if len(tmp) == 0 or not tmp[0] == 'Série':
-            self.log.info('Found serie:None')
+            self.log('Found serie:None')
             return [None, None]
 
         tmp = self.xpath_serie(xml_detail)
         if len(tmp) == 0:
-            self.log.info('Found serie:None')
+            self.log('Found serie:None')
             return [None, None]
         else:
             index = 0
@@ -218,26 +214,23 @@ class Worker(Thread):
                             index = i + 1
                             break
 
-            self.log.info('Found serie:%s[%i]'%(tmp[0],index))
+            self.log('Found serie:%s[%i]'%(tmp[0],index))
             return [tmp[0], index]
 
     def parse_cover(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_cover)
         if len(tmp) > 0:
-            self.log.info('Found covers:%s'%tmp[0])
+            self.log('Found covers:%s'%tmp[0])
             return tmp[0]
         else:
-            self.log.info('Found covers:None')
+            self.log('Found covers:None')
 
     def download_detail(self):
         query = self.plugin.BASE_URL + self.ident
         br = self.browser
         try:
-            self.log.info('download page detail %s'%query)
+            self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
-
-            self.devel.log_file(self.number, 'detail',  data)
-
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(data)
             xml = fromstring(clean,  parser=parser)

@@ -26,7 +26,7 @@ if __name__ == '__main__':
     name = None
     directory = None
     temp_directory = "..\\tmp"
-    auto_copy = ["devel", "metadata_compare", "pre_filter_compare","log"]
+    auto_copy = ["metadata_compare", "pre_filter_compare","log"]
 
     if len(sys.argv) == 2:
         directory = name = sys.argv[1]

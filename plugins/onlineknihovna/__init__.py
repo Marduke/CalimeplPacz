@@ -18,7 +18,6 @@ from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
 from onlineknihovna.worker import Worker #REPLACE from calibre_plugins.onlineknihovna.worker import Worker
-from devel import Devel #REPLACE from calibre_plugins.onlineknihovna.devel import Devel
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.onlineknihovna.metadata_compare import MetadataCompareKeyGen
 from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.onlineknihovna.pre_filter_compare import PreFilterMetadataCompare
 from onlineknihovna.search_worker import SearchWorker #REPLACE from calibre_plugins.onlineknihovna.search_worker import SearchWorker
@@ -29,11 +28,6 @@ class OnlineKnihovna(Source):
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }
-
-    '''
-    devel dir
-    '''
-    devel = Devel(r'\tmp\devel\onlineknihovna', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -147,10 +141,7 @@ class OnlineKnihovna(Source):
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
 
-        self.log = Log(self.name, log, False)
-        self.devel.setLog(log)
-#TODO: vsude, pokud se stahuje obalka sama, brat na parsovavani pouze ident, pokud neni vse
-#TODO: logging rework
+        self.log = Log(self.name, log)
         found = []
         xml = None
 
@@ -162,12 +153,12 @@ class OnlineKnihovna(Source):
 
         query = self.create_query(title=title)
         if not query:
-            self.log.error('Insufficient metadata to construct query')
+            self.log('Insufficient metadata to construct query')
             return
 
         br = self.browser
         try:
-            self.log.info('download page search %s'%query)
+            self.log('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
         except Exception as e:
             self.log.exception('Failed to make identify query: %r'%query)
@@ -176,9 +167,6 @@ class OnlineKnihovna(Source):
         try:
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
-
-            self.devel.log_file('','search',  clean)
-
             feed = fromstring(clean, parser=parser)
 
             more_pages = list(feed)
@@ -190,8 +178,8 @@ class OnlineKnihovna(Source):
             if len(more_pages) > 5:
                 page_max = int(more_pages[-1].text)
                 sworkers = []
-                sworkers.append(SearchWorker(que, self, timeout, log, self.devel, 1, ident, feed, title))
-                sworkers.extend([SearchWorker(que, self, timeout, log, self.devel, (i + 1), ident, None, title) for i in range(1,page_max)])
+                sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
+                sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
 
                 for w in sworkers:
                     w.start()
@@ -226,9 +214,8 @@ class OnlineKnihovna(Source):
             for val in tmp_entries:
                 found.append(val[0])
 
-            self.log.info('Found %i matches'%len(found))
+            self.log('Found %i matches'%len(found))
 
-#TODO: use python logging http://blog.tplus1.com/blog/2007/09/28/the-python-logging-module-is-much-better-than-print-statements/ or like next row
         except Exception as e:
             self.log.exception('Failed to parse identify results')
             return as_unicode(e)
@@ -238,7 +225,7 @@ class OnlineKnihovna(Source):
             found.insert(0, ident)
 
         try:
-            workers = [Worker(ident, result_queue, br, self.log, i, self, self.devel) for i, ident in enumerate(found)]
+            workers = [Worker(ident, result_queue, br, log, i, self) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -257,7 +244,6 @@ class OnlineKnihovna(Source):
         except Exception as e:
             self.log.exception(e)
 
-        self.log.digg()
         return None
 
     def create_query(self, title=None, number=1):
@@ -299,10 +285,10 @@ class OnlineKnihovna(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
-        self.log = Log(self.name, log, False)
+        self.log = Log(self.name, log)
         cached_url = self.get_cached_cover_url(identifiers)
         if cached_url is None:
-            self.log.info('No cached cover found, running identify')
+            self.log('No cached cover found, running identify')
             rq = Queue()
             self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
             if abort.is_set():
@@ -326,13 +312,12 @@ class OnlineKnihovna(Source):
         if abort.is_set():
             return
         br = self.browser
-        self.log.info('Downloading cover from:%s'%cached_url)
+        self.log('Downloading cover from:%s'%cached_url)
         try:
             cdata = br.open_novisit(cached_url, timeout=timeout).read()
             result_queue.put((self, cdata))
         except:
             self.log.exception('Failed to download cover from:', cached_url)
-        self.log.digg()
 
     def get_book_url(self, identifiers):
         '''

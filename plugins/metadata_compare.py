@@ -62,15 +62,18 @@ class MetadataCompareKeyGen(object):
         contains_title = 1 if title and \
                 cl_title in cl_title_mi else 2
 
+        author_segments = list(set(mi.authors) & set(authors)) #authors surname list compare
+
         has_cover = 2 if (not source_plugin.cached_cover_url_is_reliable or
                 source_plugin.get_cached_cover_url(mi.identifiers) is None) else 1
 
         #changed againt original in Calibre
         #we need another ordering
         #self.base = (isbn, has_cover, all_fields, exact_title)
-        self.base = (exact_title, isbn, contains_title, all_fields, has_cover)
+        self.base = (exact_title, isbn, contains_title, -len(author_segments), all_fields, has_cover)
         self.comments_len = len(mi.comments.strip() if mi.comments else '')
         self.extra = (getattr(mi, 'source_relevance', 0), )
+        source_plugin.log(mi.title, mi.authors, self.base)
 
     def __cmp__(self, other):
         result = cmp(self.base, other.base)
