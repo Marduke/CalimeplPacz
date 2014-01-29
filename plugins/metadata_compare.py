@@ -73,7 +73,6 @@ class MetadataCompareKeyGen(object):
         self.base = (exact_title, isbn, contains_title, -len(author_segments), all_fields, has_cover)
         self.comments_len = len(mi.comments.strip() if mi.comments else '')
         self.extra = (getattr(mi, 'source_relevance', 0), )
-        source_plugin.log(mi.title, mi.authors, self.base)
 
     def __cmp__(self, other):
         result = cmp(self.base, other.base)

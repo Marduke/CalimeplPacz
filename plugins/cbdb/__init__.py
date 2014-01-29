@@ -18,7 +18,6 @@ from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
 from cbdb.worker import Worker #REPLACE from calibre_plugins.cbdb.worker import Worker
-from devel import Devel #REPLACE from calibre_plugins.cbdb.devel import Devel
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.cbdb.metadata_compare import MetadataCompareKeyGen
 from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.cbdb.pre_filter_compare import PreFilterMetadataCompare
 from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
@@ -28,11 +27,6 @@ class Cbdb(Source):
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }
-
-    '''
-    devel dir
-    '''
-    devel = Devel(r'\tmp\devel\cbdb', True)
 
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
@@ -154,8 +148,7 @@ class Cbdb(Source):
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
 
-        self.log = Log(self.name, log, False)
-        self.devel.setLog(log)
+        self.log = Log(self.name, log)
 
         found = []
         xml = None
@@ -171,12 +164,12 @@ class Cbdb(Source):
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
         if not query:
-            self.log.error('Insufficient metadata to construct query')
+            self.log('Insufficient metadata to construct query')
             return
 #TODO: use identifiers
         br = self.browser
         try:
-            self.log.info('download page search %s'%query)
+            self.log('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
             #fix, time limited action, broke HTML
             raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
@@ -187,9 +180,6 @@ class Cbdb(Source):
         try:
             parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
-
-            self.devel.log_file('','search',  clean)
-
             feed = fromstring(clean, parser=parser)
 
             entries = entry(feed)
@@ -199,7 +189,7 @@ class Cbdb(Source):
                 if ident is not None and detail_ident != ident:
                     found.append(ident)
             else:
-                self.log.info('Found %i matches'%len(entries))
+                self.log('Found %i matches'%len(entries))
                 act_authors = []
                 for act in authors:
                     act_authors.append(act.split(" ")[-1])
@@ -238,8 +228,8 @@ class Cbdb(Source):
             workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
-                workers = [Worker(detail_ident, result_queue, br, self.log, 0, self, xml, self.devel)]
-            workers += [Worker(ident, result_queue, br, self.log, i, self, None, self.devel) for i, ident in enumerate(found)]
+                workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
+            workers += [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -256,9 +246,8 @@ class Cbdb(Source):
                 if not a_worker_is_alive:
                     break
         except Exception as e:
-            self.log.error(e)
+            self.log.exception(e)
 
-        self.log.digg()
         return None
 
     def create_query(self, title=None, authors=None, identifiers={}):
@@ -295,12 +284,12 @@ class Cbdb(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
-        self.log = Log(self.name, log, False)
+        self.log = Log(self.name, log)
         cached_urls = self.get_cached_cover_url(identifiers)
         if not title:
             return
         if not cached_urls:
-            self.log.info('No cached cover found, running identify')
+            self.log('No cached cover found, running identify')
             rq = Queue()
             self.identify(log, rq, abort, title, authors, identifiers, timeout)
             if abort.is_set():
@@ -321,10 +310,9 @@ class Cbdb(Source):
         if cached_urls is None:
             log.info('No cover found')
             return
-        self.log.info("Covers:%s"%cached_urls)
+        self.log("Covers:%s"%cached_urls)
         if abort.is_set():
             return
-        self.log.digg()
         self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
 
     def get_book_url(self, identifiers):
