@@ -36,11 +36,7 @@ class Worker(Thread):
         self.cover_url = self.isbn = None
         self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
         self.xml = xml
-        if xml is not None:
-            self.number = int(ident)
-        else:
-            self.number = int(self.ident.split('-')[0].split('/')[1])
-
+        self.number = int(ident)
         self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
@@ -53,10 +49,12 @@ class Worker(Thread):
         self.xpath_pub_date = self.XPath('//x:div[@class="data_vydani"]/x:table/x:tbody/x:tr/x:td[starts-with(text(), "přibl")]/text()')
         self.xpath_tags = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "tagy/")]/text()')
         #TODO:
-        self.xpath_serie = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:div/x:strong/text()')
+        self.xpath_serie = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/text()')
         #TODO:
-        self.xpath_serie_index = self.XPath('//x:div[@id="right"]/x:fieldset[1]//x:div[@class="right_book"]/x:a/@href')
+        self.xpath_serie_index = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/following-sibling::text()[1]')
         self.xpath_cover = self.XPath('//x:div[@id="vycet_vydani"]//x:img[@class="obalk"]/@src')
+        #TODO:
+        self.xpath_world = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "svet/")]/text()')
 
     def run(self):
         self.initXPath()
@@ -182,13 +180,16 @@ class Worker(Thread):
         return None
 
     def parse_tags(self, xml_detail):
-        tmp = self.xpath_tags(xml_detail)
-        if len(tmp) > 0:
-            self.log('Found tags:%s'%tmp)
-            return tmp
-        else:
-            self.log('Found tags:None')
-            return None
+        tags = []
+        tags += self.xpath_tags(xml_detail)
+        if self.plugin.prefs['world_tag']:
+            tmp = self.xpath_world(xml_detail)
+            if len(tmp) > 0:
+                self.log('Found world:%s'%tmp[0])
+                tags += [self.plugin.prefs['world_tag_prefix']+tmp[0]]
+
+        self.log('Found tags:%s'%tags)
+        return tags
 
     def parse_serie(self, xml_detail):
         tmp = self.xpath_serie(xml_detail)
@@ -197,15 +198,9 @@ class Worker(Thread):
             return [None, None]
         else:
             index = 0
-            if self.plugin.prefs['serie_index']:
-                tmp_index = self.xpath_serie_index(xml_detail)
-                if len(tmp_index) > 0:
-                    for i, url in enumerate(tmp_index):
-                        tmp_ident = int(url.split('-')[1])
-                        if tmp_ident == self.number:
-                            index = i + 1
-                            break
-
+            tmp_index = self.xpath_serie_index(xml_detail)
+            if len(tmp_index) > 0:
+                index = int(tmp_index[0].split(' ')[-1])
             self.log('Found serie:%s[%i]'%(tmp[0],index))
             return [tmp[0], index]
 

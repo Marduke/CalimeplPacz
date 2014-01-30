@@ -227,9 +227,10 @@ class Cbdb(Source):
                         author = author_tag[0].text.split(",")[0].strip()
                     else:
                         author = "Kolektiv"
-                    if title_tag.get('href').split('-')[0] == ident:
+                    tmp_ident = title_tag.get('href').split('-')[0].split('/')[-1]
+                    if tmp_ident == ident:
                         ident_found = True
-                    add = (title_tag.get('href'), title_tag.text, author)
+                    add = (tmp_ident, title_tag.text, author)
                     tmp_entries.append(add)
 
                 if not ident_found and ident is not None:
@@ -429,15 +430,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-#                 [title_test('Vlk', exact=False)]
-#             )
-#             ,
             (
                 {'identifiers':{}, #short story
-                'title': 'Lovci kostí', 'authors':['Steven Erikson']},
-                [title_test('Lovci kostí', exact=False)]
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Lovci kostí', 'authors':['Steven Erikson']},
+#                 [title_test('Lovci kostí', exact=False)]
+#             )
         ])

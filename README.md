@@ -30,7 +30,7 @@ Bookfan.eu
 ##Plan:
 - [x] Databazeknih.cz - v1.0.0
 - [x] cbdb.cz - v1.0.0
-- [ ] legie.cz - 0%
+- [x] legie.cz - v1.0.0
 - [ ] baila.cz - 0%
 - [ ] kdb.cz - 0%
 - [ ] leganto.cz - 0%
@@ -60,7 +60,7 @@ Bookfan.eu
 
 ### Cbdb
 - obálka cca 141x210 a obèas vìtší
-- pokud je více obálek vrací dle max_cover option, výchozí hodnota je 5 
+- pokud je více obálek vrací dle max_cover option, výchozí hodnota je 5
 - série index je nespolehlivý, je udáván pouze seøezený seznam knih v sérii
 
 ### Onlineknihovna
@@ -68,7 +68,7 @@ Bookfan.eu
 - cca 1300 knih (pouze?)
 
 ### Legie
-- obálky 150x230
+- více obálek, 150x230
 - série vèetnì nezaøazených knih
-- informace o svìtì knihy
-- detailní výpis ocenìní knihy 
+- informace o svìtì knihy, možno zapnout/vypnout a definovat prefix svìta
+- detailní výpis ocenìní knihy
