@@ -38,7 +38,7 @@ class Cbdb(Source):
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'Legie'
+    name = 'legie'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -83,7 +83,7 @@ class Cbdb(Source):
     '''
     Set this to True if your plugin returns HTML formatted comments
     '''
-    has_html_comments = False
+    has_html_comments = True
 
     '''
     Setting this to True means that the browser object will add Accept-Encoding: gzip to all requests.
@@ -104,6 +104,10 @@ class Cbdb(Source):
                Option('max_search', 'number', 25,
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
+
+               Option('max_covers', 'number', 5,
+                      'Maximum obálek',
+                      'Maximum obálek, které se mají stáhnout'),
 
                Option('world_tag', 'bool', True,
                       'stahovat tag světa knihy',
@@ -158,7 +162,7 @@ class Cbdb(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
+        detail_test = XPath('//x:div[@id="detail"]/@data-kasp-id')
         entry = XPath('//x:tr[@class="suda" or @class="licha"]')
 
         query = self.create_query(title=title, authors=authors,
@@ -181,73 +185,77 @@ class Cbdb(Source):
         except Exception as e:
             self.log.exception('Failed to make identify query: %r'%query[0])
 
-        #stories
         try:
-            self.log('download stories page search %s'%query[1])
-            rawstories = br.open(query[1], timeout=timeout).read().strip()
+            detail = detail_test(feedBooks)
+            if len(detail) > 0:
+                xml = feedBooks
+                detail_ident = detail[0]
+                if ident is not None and detail_ident != ident:
+                    found.append(ident)
+        except Exception as e:
+            self.log.exception('Failed check redirecting to detail instead of search page')
+
+        if xml is None:
+            #stories
             try:
-                parser = etree.XMLParser(recover=True)
-                clean = clean_ascii_chars(rawstories)
-                feedStories = fromstring(clean, parser=parser)
+                self.log('download stories page search %s'%query[1])
+                rawstories = br.open(query[1], timeout=timeout).read().strip()
+                try:
+                    parser = etree.XMLParser(recover=True)
+                    clean = clean_ascii_chars(rawstories)
+                    feedStories = fromstring(clean, parser=parser)
+                except Exception as e:
+                    self.log.exception('Failed to parse xpath')
             except Exception as e:
-                self.log.exception('Failed to parse xpath')
-        except Exception as e:
-            self.log.exception('Failed to make identify query: %r'%query[1])
+                self.log.exception('Failed to make identify query: %r'%query[1])
+
+            try:
+                entries = entry(feedBooks)
+                entries.extend(entry(feedStories))
+                self.log('Found %i matches'%len(entries))
+                act_authors = []
+                for act in authors:
+                    act_authors.append(act.split(" ")[-1])
+
+                ident_found = False
+                tmp_entries = []
+                for book_ref in entries:
+                    ch = book_ref.getchildren()
+                    title_tag = ch[0].getchildren()[0]
+                    author_tag = ch[1].getchildren()
+                    if len(author_tag) > 0:
+                        author = author_tag[0].text.split(",")[0].strip()
+                    else:
+                        author = "Kolektiv"
+                    if title_tag.get('href').split('-')[0] == ident:
+                        ident_found = True
+                    add = (title_tag.get('href'), title_tag.text, author)
+                    tmp_entries.append(add)
+
+                if not ident_found and ident is not None:
+                    tmp_entries.append(["-%i"%ident, title, authors],)
+
+                if len(tmp_entries) > self.prefs['max_search']:
+                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                    tmp_entries = tmp_entries[:self.prefs['max_search']]
+
+                for val in tmp_entries:
+                    found.append(val[0])
+
+            except Exception as e:
+                self.log.exception('Failed to parse identify results')
+                return as_unicode(e)
+
+            if ident and found.count(ident) > 0:
+                found.remove(ident)
+                found.insert(0, ident)
 
         try:
-            entries = entry(feedBooks)
-            entries.extend(entry(feedStories))
-#             if len(entries) == 0:
-#                 xml = feed
-#                 detail_ident = detail_test(feed)[0].split("-")[-1]
-#                 if ident is not None and detail_ident != ident:
-#                     found.append(ident)
-#             else:
-            self.log('Found %i matches'%len(entries))
-            act_authors = []
-            for act in authors:
-                act_authors.append(act.split(" ")[-1])
-
-            ident_found = False
-            tmp_entries = []
-            for book_ref in entries:
-                ch = book_ref.getchildren()
-                title_tag = ch[0].getchildren()[0]
-                author_tag = ch[1].getchildren()
-                if len(author_tag) > 0:
-                    author = author_tag[0].text.split(",")[0].strip()
-                else:
-                    author = "Kolektiv"
-                if title_tag.get('href').split('-')[0] == ident:
-                    ident_found = True
-                add = (title_tag.get('href'), title_tag.text, author)
-                tmp_entries.append(add)
-
-            if not ident_found and ident is not None:
-                tmp_entries.append(["-%i"%ident, title, authors],)
-
-            if len(tmp_entries) > self.prefs['max_search']:
-                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                tmp_entries = tmp_entries[:self.prefs['max_search']]
-
-            for val in tmp_entries:
-                found.append(val[0])
-
-        except Exception as e:
-            self.log.exception('Failed to parse identify results')
-            return as_unicode(e)
-
-        if ident and found.count(ident) > 0:
-            found.remove(ident)
-            found.insert(0, ident)
-
-        self.log(found)
-        try:
-            workers = []
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
                 workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
-            workers += [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
+            else:
+                workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -421,15 +429,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
-            )
-#             ,
 #             (
 #                 {'identifiers':{}, #short story
-#                 'title': 'Lovci kostí', 'authors':['Steven Erikson']},
-#                 [title_test('Lovci kostí', exact=False)]
+#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+#                 [title_test('Vlk', exact=False)]
 #             )
+#             ,
+            (
+                {'identifiers':{}, #short story
+                'title': 'Lovci kostí', 'authors':['Steven Erikson']},
+                [title_test('Lovci kostí', exact=False)]
+            )
         ])
