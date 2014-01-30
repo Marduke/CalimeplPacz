@@ -39,10 +39,8 @@ class Worker(Thread):
         self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
-        #TODO:
-        self.xpath_title = self.XPath('//x:h2[@id="nazev_knihy"]/text()')
-        #TODO:
-        self.xpath_authors = self.XPath('//x:a[starts-with(@href,"autor/")]/text()')
+        self.xpath_title = self.XPath('//x:h1[@itemprop="name"]/text()')
+        self.xpath_authors = self.XPath('//x:table[@class="contentFixTable"]//x:span[@itemprop="name"]/text()')
         #TODO:
         self.xpath_comments = self.XPath('//x:div[@id="anotace"]/x:p//text()')
         #TODO:
@@ -111,7 +109,7 @@ class Worker(Thread):
             return mi
         else:
             return None
-
+#TODO: test generation page url in all plugins
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
@@ -124,8 +122,9 @@ class Worker(Thread):
     def parse_authors(self, xml_detail):
         tmp = self.xpath_authors(xml_detail)
         if len(tmp) > 0:
-            self.log('Found authors:%s'%tmp)
-            return tmp
+            authors = tmp[0].split(" – ")
+            self.log('Found authors:%s'%authors)
+            return authors
         else:
             self.log('Found authors:None')
             return None
