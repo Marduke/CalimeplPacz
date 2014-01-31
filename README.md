@@ -30,11 +30,11 @@ Bookfan.eu
 ##Plan:
 - [x] Databazeknih.cz - v1.0.0
 - [x] cbdb.cz - v1.0.0
-- [x] legie.cz - v1.0.0
-- [ ] baila.cz - 0%
-- [ ] kdb.cz - 0%
-- [ ] leganto.cz - 0%
 - [x] onlineknihovna.cz - v1.0.0
+- [x] legie.cz - v1.0.0
+- [x] kdb.cz - v1.0.0
+- [ ] baila.cz - 0%
+- [ ] leganto.cz - 0%
 - [ ] knihi.cz - 0%
 - [ ] pitaval.cz - 0%
 
@@ -48,8 +48,11 @@ Bookfan.eu
 - nakladatel
 - rok vydání
 - hodnocení (1-5 hvìzdièek)
+- i každého pluginu je možno vybrat max_search, oznaèuje kolik detailù knihy se má detailnì zpracovat, pokud jich vùbec tolik najde, pokud jich bude víc seøadí je podle pøibližné relevance (odpovídající jméno a autoøi) a vezme pouze tolik kolik urèí parametr
+- pokud je více obálek vrací dle max_cover option
 
 ### Databazeknih
+- cca 182 000 knih
 - obálka 100x166 - 100x171
 - rozlišení povídky od knihy, pokud je detekována povídka je pøidán tag Povídka
 - tagy serveru(neplést s kategoriemi, server to rozlišuje) se pøidávají do tagù knihy ke kategoriím
@@ -59,16 +62,21 @@ Bookfan.eu
 - edice se pøidává mezitagy
 
 ### Cbdb
-- obálka cca 141x210 a obèas vìtší
-- pokud je více obálek vrací dle max_cover option, výchozí hodnota je 5
+- cca 91500 knih
+- více obálek o velikosti 141x210 a obèas vìtší
 - série index je nespolehlivý, je udáván pouze seøezený seznam knih v sérii
 
 ### Onlineknihovna
+- cca 1300 knih
 - obálky 477x756 a vìtší
-- cca 1300 knih (pouze?)
 
 ### Legie
+- cca 14500 knih a 21500 povídek
 - více obálek, 150x230
 - série vèetnì nezaøazených knih
 - informace o svìtì knihy, možno zapnout/vypnout a definovat prefix svìta
 - detailní výpis ocenìní knihy
+
+### Kdb
+- cca 60 000 knih
+- více obálek rùzné velikosti, jpg i gif

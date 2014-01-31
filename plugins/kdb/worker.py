@@ -41,26 +41,16 @@ class Worker(Thread):
     def initXPath(self):
         self.xpath_title = self.XPath('//x:h1[@itemprop="name"]/text()')
         self.xpath_authors = self.XPath('//x:table[@class="contentFixTable"]//x:span[@itemprop="name"]/text()')
-        #TODO:
-        self.xpath_comments = self.XPath('//x:div[@id="anotace"]/x:p//text()')
-        #TODO:
-        self.xpath_stars = self.XPath('//x:div[@id="procenta"]/text()')
-        #TODO:
-        self.xpath_isbn = self.XPath('//x:div[@class="vydani cl"]//x:span[starts-with(@title, "ISBN")]/following::text()')
-        #TODO:
-        self.xpath_publisher = self.XPath('//x:div[@class="data_vydani"]//x:a[starts-with(@href, "vydavatel/")]/text()')
-        #TODO:
-        self.xpath_pub_date = self.XPath('//x:div[@class="data_vydani"]/x:table/x:tbody/x:tr/x:td[starts-with(text(), "přibl")]/text()')
-        #TODO:
-        self.xpath_tags = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "tagy/")]/text()')
-        #TODO:
-        self.xpath_serie = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/text()')
-        #TODO:
-        self.xpath_serie_index = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/following-sibling::text()[1]')
-        #TODO:
-        self.xpath_cover = self.XPath('//x:div[@id="vycet_vydani"]//x:img[@class="obalk"]/@src')
-        #TODO:
-        self.xpath_world = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "svet/")]/text()')
+        self.xpath_comments = self.XPath('//x:h2[text()="Anotace"]/following::x:p[1]/text()')
+        self.xpath_stars = self.XPath('//x:span[@itemprop="ratingValue"]/@content')
+        self.xpath_isbn = self.XPath('//x:strong[@itemprop="isbn"]/text()')
+        self.xpath_publisher = self.XPath('//x:a[starts-with(@href, "/organizace")]/x:span/text()')
+        self.xpath_pub_date = self.XPath('//x:span[@itemprop="datePublished"]/@content')
+        self.xpath_categs = self.XPath('//x:table[@class="data-table"]//x:td//x:a[@itemprop="genre"][3]/text()')
+        self.xpath_tags = self.XPath('//x:a[starts-with(@href, "/stitky")]/x:strong/text()')
+        self.xpath_serie = self.XPath('//x:h2[starts-with(text(), "Série")]/text()')
+        self.xpath_serie_index = self.XPath('//x:h2[starts-with(text(), "Série")]/following::x:table[1]//x:td[@class="data last"]/text()')
+        self.xpath_cover = self.XPath('//x:div[@class="default_class_image"]//x:a/@href')
 
     def run(self):
         self.initXPath()
@@ -77,17 +67,17 @@ class Worker(Thread):
         else:
             self.log('Download metadata failed for: %r'%self.ident)
 
-    def parse(self, xml_detail, xml_releases):
+    def parse(self, xml_detail, xml_covers):
         title = self.parse_title(xml_detail)
         authors = self.parse_authors(xml_detail)
         comments = self.parse_comments(xml_detail)
         rating = self.parse_rating(xml_detail)
-        isbn = self.parse_isbn(xml_releases)
-        publisher = self.parse_publisher(xml_releases)
-        pub_date = self.parse_pub_date(xml_releases)
+        isbn = self.parse_isbn(xml_detail)
+        publisher = self.parse_publisher(xml_detail)
+        pub_date = self.parse_pub_date(xml_detail)
         tags = self.parse_tags(xml_detail)
         serie, serie_index = self.parse_serie(xml_detail)
-        cover = self.parse_cover(xml_releases)
+        cover = self.parse_cover(xml_covers)
 
         if title is not None and authors is not None:
             mi = Metadata(title, authors)
@@ -140,31 +130,29 @@ class Worker(Thread):
             self.log('Found comment:None')
             return None
 
+#TODO: all rating as float !! look exact working!!!!
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
-            stars_ = int(tmp[0].replace('%',''))
-            rating = int(stars_ / 20)
-            if stars_ % 20 > 0:
-                rating += 1
+            rating = tmp[0]
             self.log('Found rating:%s'%rating)
             return rating
         else:
             self.log('Found rating:None')
             return None
 
-    def parse_isbn(self, xml_releases):
-        tmp = self.xpath_isbn(xml_releases)
+    def parse_isbn(self, xml_detail):
+        tmp = self.xpath_isbn(xml_detail)
         if len(tmp) > 0:
-            isbn = tmp[1].strip()
+            isbn = tmp[0].strip()
             self.log('Found ISBN:%s'%isbn)
             return isbn
         else:
             self.log('Found ISBN:None')
             return None
 
-    def parse_publisher(self, xml_releases):
-        tmp = self.xpath_publisher(xml_releases)
+    def parse_publisher(self, xml_detail):
+        tmp = self.xpath_publisher(xml_detail)
         if len(tmp) > 0:
             self.log('Found publisher:%s'%tmp[0])
             return tmp[0]
@@ -175,16 +163,17 @@ class Worker(Thread):
     def parse_pub_date(self, xml_releases):
         tmp = self.xpath_pub_date(xml_releases)
         if len(tmp) > 0:
-            dt = tmp[-1].strip()
+            dt = tmp[0].strip()
             self.log('Found pub_date:%s'%dt)
-            dates = dt.split(".")
-            return datetime.datetime(int(dates[2]), int(dates[1]), int(dates[0]), tzinfo=utc_tz)
+            dates = dt.split("-")
+            return datetime.datetime(int(dates[0]), int(dates[1]), int(dates[2]), tzinfo=utc_tz)
 
         self.log('Found pub_date:None')
         return None
 
     def parse_tags(self, xml_detail):
         tags = []
+        tags += self.xpath_categs(xml_detail)
         tags += self.xpath_tags(xml_detail)
         self.log('Found tags:%s'%tags)
         return tags
@@ -198,12 +187,12 @@ class Worker(Thread):
             index = 0
             tmp_index = self.xpath_serie_index(xml_detail)
             if len(tmp_index) > 0:
-                index = int(tmp_index[0].split(' ')[-1])
+                index = int(tmp_index[0])
             self.log('Found serie:%s[%i]'%(tmp[0],index))
             return [tmp[0], index]
 
-    def parse_cover(self, xml_releases):
-        tmp = self.xpath_cover(xml_releases)
+    def parse_cover(self, xml_covers):
+        tmp = self.xpath_cover(xml_covers)
         if len(tmp) > 0:
             result = [self.plugin.BASE_URL + url for url in tmp]
             self.log('Found covers:%s'%result)
