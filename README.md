@@ -83,3 +83,6 @@ Bookfan.eu
 
 ### Pitaval
 - cca 11300 knih a 5600 povídek
+
+### Baila
+- obálka 140-160x228

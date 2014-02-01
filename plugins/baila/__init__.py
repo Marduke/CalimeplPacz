@@ -17,13 +17,13 @@ from lxml.html import fromstring
 from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
-from onlineknihovna.worker import Worker #REPLACE from calibre_plugins.onlineknihovna.worker import Worker
-from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.onlineknihovna.metadata_compare import MetadataCompareKeyGen
-from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.onlineknihovna.pre_filter_compare import PreFilterMetadataCompare
-from onlineknihovna.search_worker import SearchWorker #REPLACE from calibre_plugins.onlineknihovna.search_worker import SearchWorker
-from log import Log #REPLACE from calibre_plugins.onlineknihovna.log import Log
+from baila.worker import Worker #REPLACE from calibre_plugins.baila.worker import Worker
+from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.baila.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.baila.pre_filter_compare import PreFilterMetadataCompare
+from baila.search_worker import SearchWorker #REPLACE from calibre_plugins.baila.search_worker import SearchWorker
+from log import Log #REPLACE from calibre_plugins.baila.log import Log
 
-class OnlineKnihovna(Source):
+class Baila(Source):
 
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
@@ -34,12 +34,12 @@ class OnlineKnihovna(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://onlineknihovna.cz/'
+    BASE_URL = 'http://baila.net/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'onlineknihovna'
+    name = 'Baila'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -49,7 +49,7 @@ class OnlineKnihovna(Source):
     '''
     A short string describing what this plugin does
     '''
-    description = u'Download metadata and cover from onlineknihovna.cz'
+    description = u'Download metadata and cover from baila.net'
 
     '''
     The author of this plugin
@@ -79,7 +79,7 @@ class OnlineKnihovna(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'identifier:onlineknihovna', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'identifier:baila', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -150,6 +150,7 @@ class OnlineKnihovna(Source):
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
+        detail_text = XPath('')
 
         query = self.create_query(title=title)
         if not query:
@@ -260,12 +261,13 @@ class OnlineKnihovna(Source):
         if not q:
             return None
         if number == 1:
-            return self.BASE_URL+'book/search/textSearch/?'+urlencode({
-                'text':q
+            return self.BASE_URL+'search?'+urlencode({
+                'search':q
             })
         else:
-            return '%sbook/search/textSearch/%s?'%(self.BASE_URL, number)+urlencode({
-                'text':q
+            return self.BASE_URL+'search?'+urlencode({
+                'search':q,
+                'page_w':number
             })
 
     def get_cached_cover_url(self, identifiers):
@@ -377,7 +379,7 @@ if __name__ == '__main__': # tests
     # and run run.bat
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
-    test_identify_plugin(OnlineKnihovna.name,
+    test_identify_plugin(Baila.name,
         [
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #basic
@@ -403,15 +405,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Adventní kletba', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Povídky', 'authors':['Jan Balabán']},
-                [title_test('Povídky', exact=False)]
-            )
-#             ,
 #             (
 #                 {'identifiers':{}, #short story
-#                 'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
-#                 [title_test('Bestie uvnitř', exact=False)]
+#                 'title': 'Povídky', 'authors':['Jan Balabán']},
+#                 [title_test('Povídky', exact=False)]
 #             )
+#             ,
+            (
+                {'identifiers':{}, #short story
+                'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
+                [title_test('Bestie uvnitř', exact=False)]
+            )
         ])
