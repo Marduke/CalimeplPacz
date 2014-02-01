@@ -14,7 +14,7 @@ from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
-from log import Log #REPLACE from calibre_plugins.legie.log import Log
+from log import Log #REPLACE from calibre_plugins.pitaval.log import Log
 import datetime, re
 
 #Single Thread to process one page of searched list
@@ -38,7 +38,6 @@ class Worker(Thread):
         self.xml = xml
         self.log = Log("worker %s"%ident, log)
 
-#TODO: check povidka ident
     def initXPath(self):
         self.xpath_title = self.XPath('//x:h2[@id="nazev_knihy"]/text()')
         self.xpath_title_story = self.XPath('//x:h2[@id="nazev_povidky"]/text()')
@@ -188,14 +187,7 @@ class Worker(Thread):
         return None
 
     def parse_tags(self, xml_detail):
-        tags = []
-        tags += self.xpath_tags(xml_detail)
-        if self.plugin.prefs['world_tag']:
-            tmp = self.xpath_world(xml_detail)
-            if len(tmp) > 0:
-                self.log('Found world:%s'%tmp[0])
-                tags += [self.plugin.prefs['world_tag_prefix']+tmp[0]]
-
+        tags = self.xpath_tags(xml_detail)
         self.log('Found tags:%s'%tags)
         return tags
 
@@ -223,7 +215,7 @@ class Worker(Thread):
             return None
 
     def download_detail(self):
-        query = self.plugin.BASE_URL+self.ident
+        query = self.plugin.BASE_URL + self.ident
         br = self.browser
         try:
             self.log('download page detail %s'%query)

@@ -80,3 +80,6 @@ Bookfan.eu
 ### Kdb
 - cca 60 000 knih
 - více obálek rùzné velikosti, jpg i gif
+
+### Pitaval
+- cca 11300 knih a 5600 povídek

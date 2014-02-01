@@ -17,12 +17,12 @@ from lxml.html import fromstring
 from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
-from legie.worker import Worker #REPLACE from calibre_plugins.legie.worker import Worker
-from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.legie.metadata_compare import MetadataCompareKeyGen
-from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.legie.pre_filter_compare import PreFilterMetadataCompare
-from log import Log #REPLACE from calibre_plugins.legie.log import Log
+from pitaval.worker import Worker #REPLACE from calibre_plugins.pitaval.worker import Worker
+from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.pitaval.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.pitaval.pre_filter_compare import PreFilterMetadataCompare
+from log import Log #REPLACE from calibre_plugins.pitaval.log import Log
 
-class Legie(Source):
+class Pitaval(Source):
 
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
@@ -33,12 +33,12 @@ class Legie(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://www.legie.info/'
+    BASE_URL = 'http://www.pitaval.cz/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'legie'
+    name = 'pitaval'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -78,7 +78,7 @@ class Legie(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:legie', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:pitaval', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -108,14 +108,6 @@ class Legie(Source):
                Option('max_covers', 'number', 5,
                       'Maximum obálek',
                       'Maximum obálek, které se mají stáhnout'),
-
-               Option('world_tag', 'bool', True,
-                      'stahovat tag světa knihy',
-                      'stahovat tag označující svět, ve kterém se kniha odehrává'),
-
-               Option('world_tag_prefix', 'string', '_svět:',#TODO: empty it before release
-                      'prefix tagu světa knihy',
-                      'prefix tagu označujícího svět, ve kterém se kniha odehrává'),
     )
 
     '''
@@ -172,7 +164,6 @@ class Legie(Source):
             return
 
         br = self.browser
-
         try:
             self.log('download book page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
@@ -183,7 +174,7 @@ class Legie(Source):
             except Exception as e:
                 self.log.exception('Failed to parse xpath')
         except Exception as e:
-            self.log.exception('Failed to make identify query: %r'%query[0])
+            self.log.exception('Failed to make identify query: %r'%query)
 
         try:
             detail = detail_test(feed)
@@ -390,7 +381,7 @@ if __name__ == '__main__': # tests
     # and run run.bat
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
-    test_identify_plugin(Legie.name,
+    test_identify_plugin(Pitaval.name,
         [
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #basic
@@ -398,11 +389,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
 #             )
 #            ,
-            (
-                {'identifiers':{'bookfan1': '83502'}, #edice
-                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-                [title_test('Zlodějka knih', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #edice
+#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                 [title_test('Zlodějka knih', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #serie
@@ -411,20 +402,20 @@ if __name__ == '__main__': # tests
 #             )
 #            ,
 #             (
-#                 {'identifiers':{}, #short story
+#                 {'identifiers':{},
 #                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-#                 [title_test('Vlk', exact=False)]
-#             )
+            (
+                {'identifiers':{},
+                'title': 'Vysoké sázky', 'authors':['Dick Francis']},
+                [title_test('Vysoké sázky', exact=False)]
+            )
 #             ,
 #             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Lovci kostí', 'authors':['Steven Erikson']},
-#                 [title_test('Lovci kostí', exact=False)]
+#                 {'identifiers':{},
+#                 'title': 'Tajemství ulice', 'authors':['Pitt Strong']},
+#                 [title_test('Tajemství ulice', exact=False)]
 #             )
         ])
