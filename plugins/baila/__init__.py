@@ -150,7 +150,7 @@ class Baila(Source):
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
-        detail_text = XPath('')
+        detail_text = XPath('//div[@class="book content"]/@id')
 
         query = self.create_query(title=title)
         if not query:
@@ -170,50 +170,56 @@ class Baila(Source):
             clean = clean_ascii_chars(raw)
             feed = fromstring(clean, parser=parser)
 
-            more_pages = list(feed)
-            #more pages with search results
-            que = Queue()
-            if ident is not None:
-                que += ["-%i"%ident, title, authors]
+            detail = detail_text(feed)
+            if len(detail) > 0:
+                xml = feed
+                detail_ident = detail[0].split("_")[1]
+                found.append(detail_ident)
+            else:
+                more_pages = list(feed)
+                #more pages with search results
+                que = Queue()
+                if ident is not None:
+                    que += ["-%i"%ident, title, authors]
 
-            if len(more_pages) > 5:
-                page_max = int(more_pages[-1].text)
-                sworkers = []
-                sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
-                sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+                if len(more_pages) > 5:
+                    page_max = int(more_pages[-1].text)
+                    sworkers = []
+                    sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
+                    sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
 
-                for w in sworkers:
-                    w.start()
-                    time.sleep(0.1)
-
-                while not abort.is_set():
-                    a_worker_is_alive = False
                     for w in sworkers:
-                        w.join(0.2)
-                        if abort.is_set():
+                        w.start()
+                        time.sleep(0.1)
+
+                    while not abort.is_set():
+                        a_worker_is_alive = False
+                        for w in sworkers:
+                            w.join(0.2)
+                            if abort.is_set():
+                                break
+                            if w.is_alive():
+                                a_worker_is_alive = True
+                        if not a_worker_is_alive:
                             break
-                        if w.is_alive():
-                            a_worker_is_alive = True
-                    if not a_worker_is_alive:
+
+                act_authors = []
+                for act in authors:
+                    act_authors.append(act.split(" ")[-1])
+
+                tmp_entries = []
+                while True:
+                    try:
+                        tmp_entries.append(que.get_nowait())
+                    except Empty:
                         break
 
-            act_authors = []
-            for act in authors:
-                act_authors.append(act.split(" ")[-1])
+                if len(tmp_entries) > self.prefs['max_search']:
+                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                    tmp_entries = tmp_entries[:self.prefs['max_search']]
 
-            tmp_entries = []
-            while True:
-                try:
-                    tmp_entries.append(que.get_nowait())
-                except Empty:
-                    break
-
-            if len(tmp_entries) > self.prefs['max_search']:
-                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                tmp_entries = tmp_entries[:self.prefs['max_search']]
-
-            for val in tmp_entries:
-                found.append(val[0])
+                for val in tmp_entries:
+                    found.append(val[0])
 
             self.log('Found %i matches'%len(found))
 
@@ -226,7 +232,10 @@ class Baila(Source):
             found.insert(0, ident)
 
         try:
-            workers = [Worker(ident, result_queue, br, log, i, self) for i, ident in enumerate(found)]
+            if xml is not None:
+                workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
+            else:
+                workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
