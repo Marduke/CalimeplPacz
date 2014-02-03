@@ -177,32 +177,36 @@ class Baila(Source):
                 detail_ident = detail[0].split("_")[1]
                 found.append(detail_ident)
             else:
-                more_pages = list(feed)
+                self.log("more")
+                more_pages = result_count(feed)
                 #more pages with search results
                 que = Queue()
                 if ident is not None:
                     que += ["-%i"%ident, title, authors]
+                results = int(re.compile("\d+").findall(more_pages[0])[0])
+                self.log(results)
+                page_max = int(results / 10)
+                if results % 10 > 0:
+                    page_max += 1
 
-                if len(more_pages) > 5:
-                    page_max = int(more_pages[-1].text)
-                    sworkers = []
-                    sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
-                    sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+                sworkers = []
+                sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
+                sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
 
+                for w in sworkers:
+                    w.start()
+                    time.sleep(0.1)
+
+                while not abort.is_set():
+                    a_worker_is_alive = False
                     for w in sworkers:
-                        w.start()
-                        time.sleep(0.1)
-
-                    while not abort.is_set():
-                        a_worker_is_alive = False
-                        for w in sworkers:
-                            w.join(0.2)
-                            if abort.is_set():
-                                break
-                            if w.is_alive():
-                                a_worker_is_alive = True
-                        if not a_worker_is_alive:
+                        w.join(0.2)
+                        if abort.is_set():
                             break
+                        if w.is_alive():
+                            a_worker_is_alive = True
+                    if not a_worker_is_alive:
+                        break
 
                 act_authors = []
                 for act in authors:

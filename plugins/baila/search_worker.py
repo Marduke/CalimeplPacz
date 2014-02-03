@@ -25,8 +25,10 @@ class SearchWorker(Thread):
         self.identif = ident
         self.xml = xml
         self.title = title
+        self.log('init')
 
     def run(self):
+        self.log('run')
         if self.xml is None:
             raw = None
             url = None
@@ -50,14 +52,18 @@ class SearchWorker(Thread):
         self.parse()
 
     def parse(self):
-        entries = self.xml.xpath('//table[@id="listCategory"]//tr')
-        for book_ref in entries[1:]:
-            title = book_ref.xpath('.//a[starts-with(@href, "/book/") and not(starts-with(@href, "/book/search"))]')
-            authors = book_ref.xpath('.//a[starts-with(@href, "/book/search/authors")]/text()')
+        entries = self.xml.xpath('//div[@class="works paging-container scrollable"]/div[@id]/div[@class="book-info"]')
+        for book_ref in entries:
+            title = book_ref.xpath('.//h3/a')
+            authors = book_ref.xpath('.//span/a/text()')
             auths = [] #authors surnames
             for i in authors:
-                auths.append(i.split(",")[0])
-            add = (title[1].get("href"), title[1].text, auths)
+                auths.append(i.split(" ")[-1])
+            url = title[0].get("href")
+            index = url.rfind('/')
+            url = url[:index]
+            add = (url, title[0].text, auths)
+            self.log(add)
             if self.identif is None or title != self.identif:
                 self.queue.put(add)
 

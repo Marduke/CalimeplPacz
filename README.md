@@ -37,6 +37,9 @@ Bookfan.eu
 - [ ] baila.cz - 60%
 - [ ] leganto.cz - 0%
 - [ ] knihi.cz - 0%
+- [ ] palmknihy ??
+- [ ] xtr ??
+- [ ] nkp ??
 
 ##Detailní funkènost
 ### Vše
@@ -71,6 +74,7 @@ Bookfan.eu
 - obálky 477x756 a vìtší
 
 ### Legie
+- databáze knih Fantasy a Sci-Fi
 - cca 14 500 knih a 21500 povídek
 - více obálek, 150x230
 - série vèetnì nezaøazených knih
@@ -82,6 +86,7 @@ Bookfan.eu
 - více obálek rùzné velikosti, jpg i gif
 
 ### Pitaval
+- databáze detektivní, thrillerové a špionážní literatury
 - cca 11 300 knih a 5600 povídek
 
 ### Baila
