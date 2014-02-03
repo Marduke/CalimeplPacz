@@ -39,7 +39,7 @@ class Baila(Source):
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'Baila'
+    name = 'baila'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -147,9 +147,10 @@ class Baila(Source):
 
         #test previous found first
         ident = identifiers.get(self.name, None)
-
+#TODO: search workers
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
+        list = XPath('//div[@class="works paging-container scrollable"]/div[@id]/div[@class="book-info"]')
+        result_count = XPath('//div[@id="works"]/h2[@class="title"]/span[@class="n_found"]/text()')
         detail_text = XPath('//div[@class="book content"]/@id')
 
         query = self.create_query(title=title)
@@ -286,7 +287,9 @@ class Baila(Source):
         '''
         url = None
         ident = identifiers.get(self.name, None)
+        self.log(ident)
         if ident is not None:
+            self.log(ident)
             url = self.cached_identifier_to_cover_url(ident)
         return url
 
@@ -414,15 +417,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Adventní kletba', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Povídky', 'authors':['Jan Balabán']},
-#                 [title_test('Povídky', exact=False)]
-#             )
-#             ,
             (
                 {'identifiers':{}, #short story
-                'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
-                [title_test('Bestie uvnitř', exact=False)]
+                'title': 'Vlk', 'authors':['E. E Knight']},
+                [title_test('Vlk', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
+#                 [title_test('Bestie uvnitř', exact=False)]
+#             )
         ])

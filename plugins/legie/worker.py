@@ -38,7 +38,6 @@ class Worker(Thread):
         self.xml = xml
         self.log = Log("worker %s"%ident, log)
 
-#TODO: check povidka ident
     def initXPath(self):
         self.xpath_title = self.XPath('//x:h2[@id="nazev_knihy"]/text()')
         self.xpath_title_story = self.XPath('//x:h2[@id="nazev_povidky"]/text()')

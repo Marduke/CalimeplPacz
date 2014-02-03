@@ -49,7 +49,7 @@ class Worker(Thread):
         self.xpath_publisher = '//span[@itemprop="publisher"]/text()'
         self.xpath_pubdate = '//span[@class="publish-year" and @itemprop="datePublished"]/text()'
         self.xpath_tags = '//div[@class="trunc-h"]//a[starts-with(@href, "/kategorie/")]/text()'
-        #TODO:
+        #TODO:http://baila.net/kniha/129544996/vlk-zeme-upiru-1-kniha-e-e-knight
         self.xpath_serie = '//a[starts-with(@href, "/book/search/series%")]/text()'
         #TODO:
         self.xpath_serie_index = '//a[starts-with(@href, "/book/search/series_no%")]/text()'
@@ -119,7 +119,12 @@ class Worker(Thread):
         if len(tmp) > 0:
             auths = [tmp[0].strip()]
             coop = xml_detail.xpath(self.xpath_authors_coop)
-            auths += coop
+            coop = re.sub("Další autoři:", "", coop[0])
+            for name in coop.split(','):
+                parts = name.split('(')
+                if parts[1].startswith('autor'):
+                    auths += [parts[0].strip()]
+
             self.log('Found authors:%s'%auths)
             return auths
         else:

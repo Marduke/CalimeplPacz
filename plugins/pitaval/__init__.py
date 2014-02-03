@@ -23,7 +23,7 @@ from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_pl
 from log import Log #REPLACE from calibre_plugins.pitaval.log import Log
 
 class Pitaval(Source):
-
+#TODO: tag povidka
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }

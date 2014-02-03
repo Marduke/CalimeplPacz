@@ -27,7 +27,7 @@ class Legie(Source):
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }
-
+#TODO: tag povidka
     '''
     List of platforms this plugin works on For example: ['windows', 'osx', 'linux']
     '''

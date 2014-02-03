@@ -33,10 +33,10 @@ Bookfan.eu
 - [x] onlineknihovna.cz - v1.0.0
 - [x] legie.cz - v1.0.0
 - [x] kdb.cz - v1.0.0
-- [ ] baila.cz - 0%
+- [x] pitaval.cz - v1.0.0
+- [ ] baila.cz - 60%
 - [ ] leganto.cz - 0%
 - [ ] knihi.cz - 0%
-- [ ] pitaval.cz - 0%
 
 ##Detailní funkènost
 ### Vše
@@ -62,16 +62,16 @@ Bookfan.eu
 - edice se pøidává mezitagy
 
 ### Cbdb
-- cca 91500 knih
+- cca 91 500 knih
 - více obálek o velikosti 141x210 a obèas vìtší
 - série index je nespolehlivý, je udáván pouze seøezený seznam knih v sérii
 
 ### Onlineknihovna
-- cca 1300 knih
+- cca 1 300 knih
 - obálky 477x756 a vìtší
 
 ### Legie
-- cca 14500 knih a 21500 povídek
+- cca 14 500 knih a 21500 povídek
 - více obálek, 150x230
 - série vèetnì nezaøazených knih
 - informace o svìtì knihy, možno zapnout/vypnout a definovat prefix svìta
@@ -82,7 +82,9 @@ Bookfan.eu
 - více obálek rùzné velikosti, jpg i gif
 
 ### Pitaval
-- cca 11300 knih a 5600 povídek
+- cca 11 300 knih a 5600 povídek
 
 ### Baila
-- obálka 140-160x228
+- cca 1 200 000 knih
+- obálka 140-160x225
+- nepodporuje série
