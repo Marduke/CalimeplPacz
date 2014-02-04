@@ -1,0 +1,1 @@
+c:\\python27\\python testcase.py %1
