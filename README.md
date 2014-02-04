@@ -34,7 +34,7 @@ Bookfan.eu
 - [x] legie.cz - v1.0.0
 - [x] kdb.cz - v1.0.0
 - [x] pitaval.cz - v1.0.0
-- [ ] baila.cz - 60%
+- [x] baila.cz - v1.0.0
 - [ ] leganto.cz - 0%
 - [ ] knihi.cz - 0%
 - [ ] palmknihy ??
@@ -90,6 +90,6 @@ Bookfan.eu
 - cca 11 300 knih a 5600 povídek
 
 ### Baila
-- cca 1 200 000 knih
+- cca 1 200 000 knih všech kategorií
 - obálka 140-160x225
-- nepodporuje série
+- mnoho tagù

@@ -49,10 +49,7 @@ class Worker(Thread):
         self.xpath_publisher = '//span[@itemprop="publisher"]/text()'
         self.xpath_pubdate = '//span[@class="publish-year" and @itemprop="datePublished"]/text()'
         self.xpath_tags = '//div[@class="trunc-h"]//a[starts-with(@href, "/kategorie/")]/text()'
-        #TODO:http://baila.net/kniha/129544996/vlk-zeme-upiru-1-kniha-e-e-knight
-        self.xpath_serie = '//a[starts-with(@href, "/book/search/series%")]/text()'
-        #TODO:
-        self.xpath_serie_index = '//a[starts-with(@href, "/book/search/series_no%")]/text()'
+        self.xpath_serie = '//h2[@class="book-part-info"]/text()'
         self.xpath_cover = '//div[@class="cover_with_links"]/div/img/@src'
 
     def run(self):
@@ -119,11 +116,12 @@ class Worker(Thread):
         if len(tmp) > 0:
             auths = [tmp[0].strip()]
             coop = xml_detail.xpath(self.xpath_authors_coop)
-            coop = re.sub("Další autoři:", "", coop[0])
-            for name in coop.split(','):
-                parts = name.split('(')
-                if parts[1].startswith('autor'):
-                    auths += [parts[0].strip()]
+            coop = re.sub("Další autoři:", "", coop[0].strip())
+            if coop != "":
+                for name in coop.split(','):
+                    parts = name.split('(')
+                    if parts[1].startswith('autor'):
+                        auths += [parts[0].strip()]
 
             self.log('Found authors:%s'%auths)
             return auths
@@ -190,41 +188,15 @@ class Worker(Thread):
     def parse_serie(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_serie)
         if len(tmp) > 0:
-            serie_name = tmp[0]
-            serie_index = 0
-            tmp2 = xml_detail.xpath(self.xpath_serie_index)
-            if len(tmp2) > 0:
-                serie_index = float(tmp2[0])
-
-            self.log('Found serie:%s[%d]'%(serie_name, serie_index))
-            return [serie_name, serie_index]
+            serie_index, serie = tmp[0].split(',')
+            serie = serie.strip()
+            serie_index = int(re.findall("\d+", serie_index)[0])
+            self.log('Found serie:%s[%d]'%(serie, serie_index))
+            return [serie, serie_index]
 
         else:
             self.log('Found serie:None')
             return [None, None]
-
-
-        if len(tmp) == 0 or not tmp[0] == 'Série':
-            self.log('Found serie:None')
-            return [None, None]
-
-        tmp = self.xpath_serie(xml_detail)
-        if len(tmp) == 0:
-            self.log('Found serie:None')
-            return [None, None]
-        else:
-            index = 0
-            if self.plugin.prefs['serie_index']:
-                tmp_index = self.xpath_serie_index(xml_detail)
-                if len(tmp_index) > 0:
-                    for i, url in enumerate(tmp_index):
-                        tmp_ident = int(url.split('-')[1])
-                        if tmp_ident == self.number:
-                            index = i + 1
-                            break
-
-            self.log('Found serie:%s[%i]'%(tmp[0],index))
-            return [tmp[0], index]
 
     def parse_cover(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_cover)

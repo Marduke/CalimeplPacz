@@ -182,7 +182,7 @@ class Baila(Source):
                 #more pages with search results
                 que = Queue()
                 if ident is not None:
-                    que += ["-%i"%ident, title, authors]
+                    que.put(["-%s"%ident, title, authors])
                 results = int(re.compile("\d+").findall(more_pages[0])[0])
                 self.log(results)
                 page_max = int(results / 10)
@@ -291,9 +291,7 @@ class Baila(Source):
         '''
         url = None
         ident = identifiers.get(self.name, None)
-        self.log(ident)
         if ident is not None:
-            self.log(ident)
             url = self.cached_identifier_to_cover_url(ident)
         return url
 
