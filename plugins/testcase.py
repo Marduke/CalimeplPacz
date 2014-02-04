@@ -4,7 +4,8 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-import sys
+from pprint import pprint
+import sys, re, json
 
 if __name__ == '__main__':
     '''
@@ -20,20 +21,20 @@ if __name__ == '__main__':
     edition
     world
 
-    each must have specified all result outputs metadata by test-cases in test specification
+    each must have specified all result outputs metadata in testcases.dat
 
-    'test-cases':{
-        'type': 'long_search1',
-        'title':'Vlk',
-        'authors': ['E. E Knight'],
-        'serie': 'Země upírů',
-        'serie_index': 1,
-        'tags': ['americká literatura','sci-fi','vědeckofantastické romány'],
-        'publisher': 'Triton / Trifid',
-        'pubdate': '2008-01-01T00:00:00',
-        'comments': 'Louisiana, druhá polovina 21. století: Země má nové šéfy Karany, mimozemšťany, kteří k nám pronikli mezihvězdnou bránou mezi světy. Už tady jednou byli, zůstaly po nich legendy o upírech a vlkodlacích. Tentokrát se na invazi důkladně připravili. Karané jsou staré nesmrtelné plémě, protože vysávají „vitální auru“ živých tvorů. Čím inteligentnější tvor, tím výživnější aura. Lidská aura je velice výživná. Karané rozvrátili lidskou společnost sérií globálních katastrof, upravili klima a nastolili Karské zřízení. Od lidí nechtějí mnoho – pouze jejich životy.',
-        'identifiers': {'isbn':'9788073871499', 'baila':'/kniha/129544996'},
-        'covers': ['http://baila.net/img/ebda30c55c4ef20d'],
+    test-cases name {
+        type: 'long_search1'
+        title:'Vlk'
+        authors: 'E. E Knight'
+        serie: 'abc'
+        serie_index: 1
+        tags: 'americka literatura','sci-fi','vedeckofantasticke romany'
+        publisher: 'Triton / Trifid'
+        pubdate: '2008-01-01T00:00:00'
+        comments: 'bla bla.'
+        identifiers: 'isbn':'9788073871499', 'baila':'/kniha/129544996'
+        covers: 'http://baila.net/img/ebda30c55c4ef20d'
     }
     '''
     if len(sys.argv) == 2:
@@ -42,7 +43,31 @@ if __name__ == '__main__':
         print('No argument. Exiting...')
         exit()
 
-    init = open("%s\\__init__.py"%name, "r")
 
-    init.close()
+    config  = file("%s\\testcase.json"%name, "r")
+    data = json.loads(config.read().decode("utf-8-sig"))
+
+    pprint(data)
+    config.close()
+#     config = {}
+#     tc = open("%s\\testcase.dat"%name, "r")
+#     in_comment = False
+#     in_block = False
+#     for line in tc.readlines():
+#         line = line[:-1].strip()
+#         if in_block == False and (line.startswith('\t') or line.startswith(' ' * 4)):
+#             print(line)
+#         elif line.endswith('{'):
+#             name = re.search(".* {", line)
+#         elif line.endswith('{'):
+#
+#             in_block = False
+#     tc.close()
+
+#     init = open("%s\\test.txt"%name, "r")
+#     for line in init.readlines():
+#         s
+#
+#
+#     init.close()
 

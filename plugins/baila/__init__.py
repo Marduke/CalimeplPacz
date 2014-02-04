@@ -147,9 +147,7 @@ class Baila(Source):
 
         #test previous found first
         ident = identifiers.get(self.name, None)
-#TODO: search workers
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        list = XPath('//div[@class="works paging-container scrollable"]/div[@id]/div[@class="book-info"]')
         result_count = XPath('//div[@id="works"]/h2[@class="title"]/span[@class="n_found"]/text()')
         detail_text = XPath('//div[@class="book content"]/@id')
 
@@ -177,14 +175,12 @@ class Baila(Source):
                 detail_ident = detail[0].split("_")[1]
                 found.append(detail_ident)
             else:
-                self.log("more")
                 more_pages = result_count(feed)
                 #more pages with search results
                 que = Queue()
                 if ident is not None:
                     que.put(["-%s"%ident, title, authors])
                 results = int(re.compile("\d+").findall(more_pages[0])[0])
-                self.log(results)
                 page_max = int(results / 10)
                 if results % 10 > 0:
                     page_max += 1
@@ -395,61 +391,20 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Baila.name,
         [
+#             (
+#                 {'identifiers':{'test-case':'long search'},
+#                  'title': 'Vlk', 'authors':['E. E Knight']},
+#                 [title_test('Vlk', exact=False)]
+#             )
+#             ,
+#             (
+#                 {'identifiers':{'test-case':'redirect search'},
+#                  'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
+#                 [title_test('Bestie uvnitř', exact=False)]
+#             )
+#             ,
             (
-                {'identifiers':{},
-#                 'test-cases':{
-#                     'type': 'long_search',
-#                     'title':'Vlk',
-#                     'authors': ['E. E Knight'],
-#                     'serie': 'Země upírů',
-#                     'serie_index': 1,
-#                     'tags': ['americká literatura','sci-fi','vědeckofantastické romány'],
-#                     'publisher': 'Triton / Trifid',
-#                     'pubdate': '2008-01-01T00:00:00',
-#                     'comments': 'Louisiana, druhá polovina 21. století: Země má nové šéfy Karany, mimozemšťany, kteří k nám pronikli mezihvězdnou bránou mezi světy. Už tady jednou byli, zůstaly po nich legendy o upírech a vlkodlacích. Tentokrát se na invazi důkladně připravili. Karané jsou staré nesmrtelné plémě, protože vysávají „vitální auru“ živých tvorů. Čím inteligentnější tvor, tím výživnější aura. Lidská aura je velice výživná. Karané rozvrátili lidskou společnost sérií globálních katastrof, upravili klima a nastolili Karské zřízení. Od lidí nechtějí mnoho – pouze jejich životy.',
-#                     'identifiers': {'isbn':'9788073871499', 'baila':'/kniha/129544996'},
-#                     'covers': ['http://baila.net/img/ebda30c55c4ef20d'],
-#                 },
-                 'title': 'Vlk', 'authors':['E. E Knight']},
-                [title_test('Vlk', exact=False)]
-            )
-            ,
-            (
-                {'identifiers':{},
-#                  'test-cases':{
-#                     'type': 'redirect search',
-#                     'title':'Bestie uvnitř',
-#                     'authors': ['Lotte Hammer', 'Søren Hammer'],
-#                     'serie': None,
-#                     'serie_index': None,
-#                     'tags': ['detektivky, napětí','detektivní romány','dánské romány'],
-#                     'publisher': 'Host',
-#                     'pubdate': '2012-01-01T00:00:00',
-#                     'comments': '''Jednoho rána vběhnou děti do školní tělocvičny a spatří něco hrozného: ze stropu tam visí pět nahých znetvořených mužských těl. Na místo je okamžitě povolán vrchní kriminální komisař Konrad Simonsen se svým týmem z kodaňského oddělení vražd. Výslechy školního personálu brzy odhalí prvního podezřelého: školníka Pera Clausena. Ten sice na první pohled nevypadá jako bestiální vrah, ale od začátku je patrné, že ví víc, než prozradil policii.<br/>
-# Policejní pátrání dlouho nepřináší odpovědi na základní otázky: Co bylo motivem? A proč byla vražda pěti mužů pečlivě naaranžována jako hromadná poprava? Je pachatel jen jeden, nebo má vraždy na svědomí organizovaná skupina?<br/>
-# Dříve než od policie získává dánská veřejnost informace z rafinované kampaně v tisku a celý případ se rázem jeví ve zcela jiné perspektivě. Je možné, aby vrah byl zároveň obětí? A kdo bude nakonec rozhodovat o vině a nevině – média, veřejné mínění, nebo Konrad Simonsen a jeho vyšetřovací tým?''',
-#                     'identifiers': {'isbn':'9788072945825', 'baila':'54625789'},
-#                     'covers': ['http://baila.net/img/6b8e24c64b98f84f'],
-#                 },
-                 'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
-                [title_test('Bestie uvnitř', exact=False)]
-            )
-            ,
-            (
-                {'identifiers':{},
-#                  'test-cases':{
-#                     'type': 'simple book',
-#                     'title':'Duna',
-#                     'authors': ['Frank Herbert'],
-#                     'serie': None,
-#                     'serie_index': None,
-#                     'tags': ['americká literatura','americké romány','romány','sci-fi','vědecko-fantastické romány'],
-#                     'publisher': 'Baronet',
-#                     'pubdate': '2006-01-01T00:00:00',
-#                     'comments': '''Kultovní SF sága Duny, kterou mnozí znají z některé její filmové adaptace, se rodila nesnadno. Její první díl, román Duna, který později proslavil jednoho z dnes již klasiků SF literatury, Franka Herberta, vyšel v roce 1963 v časopise Analog pod názvem Svět Duny, ovšem jen jeho část. Díky obrovskému ohlasu u čtenářů napsal vzápětí autor pokračování příběhu Prorok Duny. Pro knižní vydání (1965) obě části spojil a výstižně a stručně nazval Duna. Úspěch románu o pouštní planetě Arrakis a jejím pokladu stále rostl, hned v následujícím roce (1966) získal jak cenu Nebula, tak Hugo.''',
-#                     'identifiers': {'isbn':'8072149415', 'baila':'45272936'},
-#                     'covers': ['http://baila.net/img/b1ba9c851b493b8f'],
-#                 }
+                {'identifiers':{'test-case':'simple book'},
                  'title': 'Duna', 'authors':['Frank Herbert']},
                 [title_test('Duna', exact=False)]
             )
