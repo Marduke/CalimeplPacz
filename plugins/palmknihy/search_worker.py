@@ -43,9 +43,6 @@ class SearchWorker(Thread):
                 try:
                     parser = etree.XMLParser(recover=True)
                     clean = clean_ascii_chars(raw)
-                    clean = re.sub("<br>", "<br/>", clean)
-                    clean = re.sub("&nbsp;", " ", clean)
-                    clean = re.sub("&hellip;", "...", clean)
                     self.xml = fromstring(clean, parser=parser)
                     if len(parser.error_log) > 0: #some errors while parsing
                         self.log('while parsing page occus some errors:')
@@ -57,19 +54,20 @@ class SearchWorker(Thread):
         self.parse()
 
     def parse(self):
-        entries = self.xml.xpath('//div[@class="works paging-container scrollable"]/div[@id]/div[@class="book-info"]')
+        entries = self.xml.xpath('//div[@class="book-list"]/div[starts-with(@class, "item")]')
         for book_ref in entries:
-            title = book_ref.xpath('.//h3/a')
-            authors = book_ref.xpath('.//span/a/text()')
+            ch = book_ref.getchildren()
+            title = ch[0]
+            authors = ch[1].getchildren()[0].text
             auths = [] #authors surnames
-            for i in authors:
-                auths.append(i.split(" ")[-1])
+            auths.append(authors.split(" ")[-1])
 
             if len(title) > 0:
-                url = title[0].get("href")
-                index = url.rfind('/')
+                url = title.get("href")
+                index = url.rfind('?')
                 url = url[:index]
-                add = (url, title[0].text, auths)
+                add = (url, title.getchildren()[1].text, auths)
+                self.log(add)
                 if self.identif is None or title != self.identif:
                     self.queue.put(add)
             else:

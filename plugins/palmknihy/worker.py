@@ -36,21 +36,22 @@ class Worker(Thread):
         self.cover_url = self.isbn = None
         self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
         self.xml = xml
-        self.log = Log("worker %s"%ident, log)
+        self.ident = re.sub(".htm", "", self.ident)
+        self.ident = re.sub("/web/kniha/", "", self.ident)
+        self.log = Log("worker %s"%self.ident, log)
 
     def initXPath(self):
-        self.xpath_title = '//h1[@class="book-title t"]/text()'
-        #TODO:
-        self.xpath_authors = '//h2[@class="book-author t"]/span/a/text()'
-        self.xpath_authors_coop = '//div[@class="book-contributors"]/text()'
-        self.xpath_comments = '//div[@class="trunc-a"]/text()'
+        self.xpath_title = '//h1[@itemprop="name"]/text()'
+        self.xpath_authors =  '//li[@class="author"]/a/strong/text()'
+        self.xpath_comments = '//div[@itemprop="description"]/p/text()'
         self.xpath_stars = '//meta[@itemprop="ratingValue"]/@content'
-        self.xpath_isbn = '//span[@itemprop="isbn"]/text()'
-        self.xpath_publisher = '//span[@itemprop="publisher"]/text()'
-        self.xpath_pubdate = '//span[@class="publish-year" and @itemprop="datePublished"]/text()'
+        self.xpath_isbn = '//strong[@itemprop="productID"]/text()'
+        self.xpath_publisher = '//a[@itemprop="manufacturer"]/text()'
+        self.xpath_pubdate = '//div[@class="detail"]/ul/li[starts-with(text(), "Rok")]/strong/text()'
+        #TODO:
         self.xpath_tags = '//div[@class="trunc-h"]//a[starts-with(@href, "/kategorie/")]/text()'
-        self.xpath_serie = '//h2[@class="book-part-info"]/text()'
-        self.xpath_cover = '//div[@class="cover_with_links"]/div/img/@src'
+        self.xpath_serie = '//a[starts-with(@href, "/web/c?series=")]/text()'
+        self.xpath_serie_index = '//li/a[starts-with(@href, "/web/c?series=")]/following::li[1]/text()'
 
     def run(self):
         self.initXPath()
@@ -114,17 +115,8 @@ class Worker(Thread):
     def parse_authors(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_authors)
         if len(tmp) > 0:
-            auths = [tmp[0].strip()]
-            coop = xml_detail.xpath(self.xpath_authors_coop)
-            coop = re.sub("Další autoři:", "", coop[0].strip())
-            if coop != "":
-                for name in coop.split(','):
-                    parts = name.split('(')
-                    if parts[1].startswith('autor'):
-                        auths += [parts[0].strip()]
-
-            self.log('Found authors:%s'%auths)
-            return auths
+            self.log('Found authors:%s'%tmp)
+            return tmp
         else:
             self.log('Found authors:None')
             return None
@@ -188,9 +180,9 @@ class Worker(Thread):
     def parse_serie(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_serie)
         if len(tmp) > 0:
-            serie_index, serie = tmp[0].split(',')
-            serie = serie.strip()
-            serie_index = int(re.findall("\d+", serie_index)[0])
+            serie = tmp[0]
+            index = xml_detail.xpath(self.xpath_serie_index)
+            serie_index = int(index[0].split(" ")[-1])
             self.log('Found serie:%s[%d]'%(serie, serie_index))
             return [serie, serie_index]
 
@@ -199,20 +191,19 @@ class Worker(Thread):
             return [None, None]
 
     def parse_cover(self, xml_detail):
-        tmp = xml_detail.xpath(self.xpath_cover)
-        if len(tmp) > 0:
-            self.log('Found covers:%s'%tmp[0])
-            return tmp[0]
-        else:
-            self.log('Found covers:None')
+        number = re.search("\d+", self.ident).group();
+        url = "http://palmknihy.cz/web/data/Book_%s.Envelope"%number
+        self.log('Found cover:%s'%url)
+        return url
+
 
     def download_detail(self):
-        query = self.plugin.BASE_URL + self.ident
+        query = "%sweb/kniha/%s.htm"%(self.plugin.BASE_URL,self.ident)
         br = self.browser
         try:
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
-            parser = etree.XMLParser(recover=True)
+            parser = etree.HTMLParser()
             clean = clean_ascii_chars(data)
             xml = fromstring(clean,  parser=parser)
             return xml
