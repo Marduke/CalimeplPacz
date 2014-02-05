@@ -45,9 +45,9 @@ class SearchWorker(Thread):
                     parser = etree.HTMLParser()
                     clean = clean_ascii_chars(raw)
                     self.xml = fromstring(clean, parser=parser)
-                    if len(parser.error_log) > 0: #some errors while parsing
-                        self.log('while parsing page occus some errors:')
-                        self.log(parser.error_log)
+#                     if len(parser.error_log) > 0: #some errors while parsing
+#                         self.log('while parsing page occus some errors:')
+#                         self.log(parser.error_log)
 
                 except Exception as e:
                     self.log.exception('Failed to parse xml for url: %s'%url)
@@ -58,7 +58,6 @@ class SearchWorker(Thread):
         entries = self.xml.xpath('//div[@class="book-list"]/div[starts-with(@class, "item")]')
         for book_ref in entries:
             ch = book_ref.getchildren()
-            self.log(ch[0])
             title = ch[0]
             authors = ch[1].getchildren()[0].text
             auths = [] #authors surnames
@@ -69,7 +68,6 @@ class SearchWorker(Thread):
                 index = url.rfind('?')
                 url = url[:index]
                 add = (url, title.getchildren()[1].text, auths)
-                self.log(add)
                 if self.identif is None or title != self.identif:
                     self.queue.put(add)
             else:
