@@ -35,7 +35,7 @@ Bookfan.eu
 - [x] kdb.cz - v1.0.0
 - [x] pitaval.cz - v1.0.0
 - [x] baila.cz - v1.0.0
-- [ ] palmknihy 0 %
+- [x] palmknihy - v1.0.0
 - [ ] xtr ??
 - [ ] nkp ??
 

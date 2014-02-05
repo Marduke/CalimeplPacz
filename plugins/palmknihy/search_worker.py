@@ -16,7 +16,7 @@ import re
 
 #Single Thread to process one page of search page
 class SearchWorker(Thread):
-    def __init__(self, queue, plugin, timeout, log, number, ident, xml, title):
+    def __init__(self, queue, plugin, timeout, log, number, ident, xml, title, authors):
         Thread.__init__(self)
         self.queue = queue
         self.plugin = plugin
@@ -26,13 +26,14 @@ class SearchWorker(Thread):
         self.identif = ident
         self.xml = xml
         self.title = title
+        self.authors = authors
 
     def run(self):
         if self.xml is None:
             raw = None
             url = None
             try:
-                url = self.plugin.create_query(self.title, self.number)
+                url = self.plugin.create_query(self.title, self.authors, self.number)
                 self.log('download page search %s'%url)
                 raw = self.plugin.browser.open(url, timeout=self.timeout).read().strip()
             except Exception as e:
@@ -41,7 +42,7 @@ class SearchWorker(Thread):
 
             if raw is not None:
                 try:
-                    parser = etree.XMLParser(recover=True)
+                    parser = etree.HTMLParser()
                     clean = clean_ascii_chars(raw)
                     self.xml = fromstring(clean, parser=parser)
                     if len(parser.error_log) > 0: #some errors while parsing
@@ -57,6 +58,7 @@ class SearchWorker(Thread):
         entries = self.xml.xpath('//div[@class="book-list"]/div[starts-with(@class, "item")]')
         for book_ref in entries:
             ch = book_ref.getchildren()
+            self.log(ch[0])
             title = ch[0]
             authors = ch[1].getchildren()[0].text
             auths = [] #authors surnames

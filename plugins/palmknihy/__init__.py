@@ -106,7 +106,7 @@ class Palmknihy(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
-               Option('search_advanced', 'bool', True,
+               Option('search_advanced', 'bool', False,
                       'Hledat podle autora',
                       'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
     )
@@ -181,13 +181,13 @@ class Palmknihy(Source):
 #                 if ident is not None:
 #                     que.put(["-%s"%ident, title, authors])
             if len(more_pages) > 0:
-                page_max = int(re.compile("\d+").search(more_pages[0]))
+                page_max = int(re.search("\d+", more_pages[0]).group()[-1])
             else:
                 page_max = 1
 
             sworkers = []
-            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
-            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title, authors))
+            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title, authors) for i in range(1,page_max)])
 
             for w in sworkers:
                 w.start()
@@ -267,6 +267,8 @@ class Palmknihy(Source):
             q = q.encode('utf-8')
         if not q:
             return None
+
+        number -= 1
         if self.prefs['search_advanced'] and authors is not None:
             auth = authors[0].split(' ')[-1]
             return self.BASE_URL+'web/c?'+urlencode({
@@ -393,11 +395,11 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Palmknihy.name,
         [
-#             (
-#                 {'identifiers':{'test-case':'long search'},
-#                  'title': 'Vlk', 'authors':['E. E Knight']},
-#                 [title_test('Vlk', exact=False)]
-#             )
+            (
+                {'identifiers':{'test-case':'long search'},
+                 'title': 'Kříž', 'authors':['Ken Bruen']},
+                [title_test('Kříž', exact=False)]
+            )
 #             ,
 #             (
 #                 {'identifiers':{'test-case':'redirect search'},
@@ -405,9 +407,9 @@ if __name__ == '__main__': # tests
 #                 [title_test('Bestie uvnitř', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{'test-case':'simple book'},
-                 'title': 'Duna', 'authors':['Frank Herbert']},
-                [title_test('Duna', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'test-case':'simple book'},
+#                  'title': 'Duna', 'authors':['Frank Herbert']},
+#                 [title_test('Duna', exact=False)]
+#             )
         ])

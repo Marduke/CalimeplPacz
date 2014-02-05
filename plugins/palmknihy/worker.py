@@ -48,10 +48,9 @@ class Worker(Thread):
         self.xpath_isbn = '//strong[@itemprop="productID"]/text()'
         self.xpath_publisher = '//a[@itemprop="manufacturer"]/text()'
         self.xpath_pubdate = '//div[@class="detail"]/ul/li[starts-with(text(), "Rok")]/strong/text()'
-        #TODO:
-        self.xpath_tags = '//div[@class="trunc-h"]//a[starts-with(@href, "/kategorie/")]/text()'
+        self.xpath_tags = '//ul[@class="breads"]/li[last()-1]/a/text()'
         self.xpath_serie = '//a[starts-with(@href, "/web/c?series=")]/text()'
-        self.xpath_serie_index = '//li/a[starts-with(@href, "/web/c?series=")]/following::li[1]/text()'
+        self.xpath_serie_index = '//div[@class="detail"]/ul/li[starts-with(text(), "Díl")]/text()'
 
     def run(self):
         self.initXPath()
@@ -182,9 +181,13 @@ class Worker(Thread):
         if len(tmp) > 0:
             serie = tmp[0]
             index = xml_detail.xpath(self.xpath_serie_index)
-            serie_index = int(index[0].split(" ")[-1])
-            self.log('Found serie:%s[%d]'%(serie, serie_index))
-            return [serie, serie_index]
+            if len(index) > 0:
+                serie_index = int(index[0].split(" ")[-1])
+                self.log('Found serie:%s[%d]'%(serie, serie_index))
+                return [serie, serie_index]
+            else:
+                self.log('Found serie:%s'%serie)
+                return [serie, None]
 
         else:
             self.log('Found serie:None')
