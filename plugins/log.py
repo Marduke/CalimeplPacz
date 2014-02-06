@@ -3,6 +3,7 @@
 from __future__ import (unicode_literals, division, absolute_import, print_function)
 
 import inspect, traceback
+from datetime import datetime
 
 __docformat__ = 'restructuredtext en'
 
@@ -35,5 +36,16 @@ class Log(object):
             self.parent_log.prints(level, *args, **kwargs)
         else:
             frame = inspect.getouterframes(inspect.currentframe(), 2)[2]
-            prefix = '%s.%s(%s): '%(self.name, frame[3],frame[2])
+            prefix = '%s - %s.%s(%s): '%(str(datetime.now()),self.name, frame[3],frame[2])
             self.parent_log.prints(level, prefix, *args, **kwargs)
+
+    def filelog(self, content, path = "\test.html"):
+        self.__call__("writing %i B to file %s"%(len(content),path))
+        try:
+            f = open(path, "w")
+            try:
+                f.write(content)
+            finally:
+                f.close()
+        except IOError:
+            pass
