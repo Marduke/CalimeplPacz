@@ -25,7 +25,7 @@ Je možno sputit jeho test pøes run.bat
 Jelikož píšu v Pydev tak mi pøi více souborech v pluginu hlásí prostøedí neznámé tøídy. To jsem vyøešil buildovacím scriptem. Takže NELZE vzít obsah vybraného adresáøe a zabalit jako Calibre plugin. Musí se spustit build.py/buidl.bat podobnì jak je to v run.bat a poté teplve zabalit. Pluginy také obsahují pomocnou tøídu na výpisy stažených dat Devel. Ta se musí pøidat také.
 
 ##Hotovo z minula:
-Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z ni inzerentni rozcestnik
+Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z ni inzerentni rozcestnik :-(((
 
 ##Plan:
 - [x] Databazeknih.cz - v1.0.0

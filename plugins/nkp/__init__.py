@@ -2,12 +2,13 @@
 # vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 from __future__ import (unicode_literals, division, absolute_import, print_function)
 from html5lib.treebuilders import etree_lxml
+from urllib import urlencode
 
 __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-import re, time, sys
+import re, time
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.utils.cleantext import clean_ascii_chars
@@ -17,13 +18,12 @@ from lxml.html import fromstring
 from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
-from palmknihy.worker import Worker #REPLACE from calibre_plugins.palmknihy.worker import Worker
-from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.palmknihy.metadata_compare import MetadataCompareKeyGen
-from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.palmknihy.pre_filter_compare import PreFilterMetadataCompare
-from palmknihy.search_worker import SearchWorker #REPLACE from calibre_plugins.palmknihy.search_worker import SearchWorker
-from log import Log #REPLACE from calibre_plugins.palmknihy.log import Log
+from nkp.worker import Worker #REPLACE from calibre_plugins.nkp.worker import Worker
+from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.nkp.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.nkp.pre_filter_compare import PreFilterMetadataCompare
+from log import Log #REPLACE from calibre_plugins.nkp.log import Log
 
-class Palmknihy(Source):
+class Nkp(Source):
 
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
@@ -34,12 +34,12 @@ class Palmknihy(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://palmknihy.cz/'
+    BASE_URL = 'http://aleph.nkp.cz/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'palmknihy'
+    name = 'nkp'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -49,7 +49,7 @@ class Palmknihy(Source):
     '''
     A short string describing what this plugin does
     '''
-    description = u'Download metadata and cover from palmknihy.cz'
+    description = u'Download metadata and cover from nkp.cz'
 
     '''
     The author of this plugin
@@ -79,7 +79,7 @@ class Palmknihy(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'identifier:palmknihy', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:nkp', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -106,9 +106,6 @@ class Palmknihy(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
-               Option('search_advanced', 'bool', False,
-                      'Hledat podle autora',
-                      'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
     )
 
     '''
@@ -119,7 +116,7 @@ class Palmknihy(Source):
     '''
     If True this source can return multiple covers for a given query
     '''
-    can_get_multiple_covers = False
+    can_get_multiple_covers = True
 
     '''
     If set to True covers downloaded by this plugin are automatically trimmed.
@@ -146,14 +143,20 @@ class Palmknihy(Source):
         '''
 
         self.log = Log(self.name, log)
+
         found = []
+        xml = None
+        detail_ident = None
 
         #test previous found first
         ident = identifiers.get(self.name, None)
-        XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        pages_count = XPath('//div[@class="clear pagging"]/a[text() = "Poslední>|"]/@href')
 
-        query = self.create_query(title=title, authors=authors)
+        XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
+        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
+        detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
+
+        query = self.create_query(title=title, authors=authors,
+                identifiers=identifiers)
         if not query:
             self.log('Insufficient metadata to construct query')
             return
@@ -162,67 +165,51 @@ class Palmknihy(Source):
         try:
             self.log('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
+            #fix, time limited action, broke HTML
+            raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
         except Exception as e:
             self.log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
 
         try:
-            parser = etree.HTMLParser()
+            parser = etree.XMLParser(recover=True)
             clean = clean_ascii_chars(raw)
+            self.log.filelog(clean)
             feed = fromstring(clean, parser=parser)
-#             if len(parser.error_log) > 0: #some errors while parsing
-#                 self.log('while parsing page occus some errors:')
-#                 self.log(parser.error_log)
 
-            more_pages = pages_count(feed)
-            #more pages with search results
-            que = Queue()
-#TODO:
-#                 if ident is not None:
-#                     que.put(["-%s"%ident, title, authors])
-            if len(more_pages) > 0:
-                page_max = int(re.search("\d+", more_pages[0]).group()[-1])
+            entries = entry(feed)
+            if len(entries) == 0:
+                xml = feed
+                detail_ident = detail_test(feed)[0].split("-")[-1]
+                if ident is not None and detail_ident != ident:
+                    found.append(ident)
             else:
-                page_max = 1
+                self.log('Found %i matches'%len(entries))
+                act_authors = []
+                for act in authors:
+                    act_authors.append(act.split(" ")[-1])
 
-            sworkers = []
-            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title, authors))
-            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title, authors) for i in range(1,page_max)])
+                ident_found = False
+                tmp_entries = []
+                for book_ref in entries:
+                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                    auths = [] #authors surnames
+                    for i in (tmp[1:]):
+                        auths.append(i.text.split(" ")[-1])
+                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
+                    if tmp[0].get('href').split('-')[1] == ident:
+                        ident_found = True
+                    tmp_entries.append(add)
 
-            for w in sworkers:
-                w.start()
-                time.sleep(0.1)
+                if not ident_found and ident is not None:
+                    tmp_entries.append(["-%i"%ident, title, authors],)
 
-            while not abort.is_set():
-                a_worker_is_alive = False
-                for w in sworkers:
-                    w.join(0.2)
-                    if abort.is_set():
-                        break
-                    if w.is_alive():
-                        a_worker_is_alive = True
-                if not a_worker_is_alive:
-                    break
+                if len(tmp_entries) > self.prefs['max_search']:
+                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                    tmp_entries = tmp_entries[:self.prefs['max_search']]
 
-            act_authors = []
-            for act in authors:
-                act_authors.append(act.split(" ")[-1])
-
-            tmp_entries = []
-            while True:
-                try:
-                    tmp_entries.append(que.get_nowait())
-                except Empty:
-                    break
-
-            if len(tmp_entries) > self.prefs['max_search']:
-                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                tmp_entries = tmp_entries[:self.prefs['max_search']]
-
-            for val in tmp_entries:
-                found.append(val[0])
-
-            self.log('Found %i matches'%len(found))
+                for val in tmp_entries:
+                    found.append(val[0])
 
         except Exception as e:
             self.log.exception('Failed to parse identify results')
@@ -233,7 +220,11 @@ class Palmknihy(Source):
             found.insert(0, ident)
 
         try:
-            workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
+            workers = []
+            #if redirect push to worker actual parsed xml, no need to download and parse it again
+            if xml is not None:
+                workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
+            workers += [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -254,7 +245,7 @@ class Palmknihy(Source):
 
         return None
 
-    def create_query(self, title=None, authors=None, number=1):
+    def create_query(self, title=None, authors=None, identifiers={}):
         '''
         create url for HTTP request
         '''
@@ -262,28 +253,13 @@ class Palmknihy(Source):
         q = ''
         if title:
             q += ' '.join(self.get_title_tokens(title))
-
         if isinstance(q, unicode):
             q = q.encode('utf-8')
         if not q:
             return None
 
-        number -= 1
-        if self.prefs['search_advanced'] and authors is not None:
-            #TODO: url encode
-            auth = authors[0].split(' ')[-1]
-            return self.BASE_URL+'web/c?'+urlencode({
-                'title':q,
-                'ath':auth,
-                'pg':number,
-                #fix with this not add foreign free ebooks
-                'srchTp':'lo'
-            })
-        else:
-            return self.BASE_URL+'web/c?'+urlencode({
-                'fraze':q,
-                'pg':number
-            })
+        auth = authors[0].split(' ')[-1]
+        return "%s/F?func=find-d&find_code=WRD&request=%s&adjacent1=N&find_code=WRD&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
 
     def get_cached_cover_url(self, identifiers):
         '''
@@ -303,11 +279,13 @@ class Palmknihy(Source):
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
         self.log = Log(self.name, log)
-        cached_url = self.get_cached_cover_url(identifiers)
-        if cached_url is None:
+        cached_urls = self.get_cached_cover_url(identifiers)
+        if not title:
+            return
+        if not cached_urls:
             self.log('No cached cover found, running identify')
             rq = Queue()
-            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
+            self.identify(log, rq, abort, title, authors, identifiers, timeout)
             if abort.is_set():
                 return
             results = []
@@ -319,22 +297,17 @@ class Palmknihy(Source):
             results.sort(key=self.identify_results_keygen(
                 title=title, authors=authors, identifiers=identifiers))
             for mi in results:
-                cached_url = self.get_cached_cover_url(mi.identifiers)
-                if cached_url is not None:
+                cached_urls = self.get_cached_cover_url(mi.identifiers)
+                if cached_urls is not None:
                     break
-        if cached_url is None:
+
+        if cached_urls is None:
             log.info('No cover found')
             return
-
+        self.log("Covers:%s"%cached_urls)
         if abort.is_set():
             return
-        br = self.browser
-        self.log('Downloading cover from:%s'%cached_url)
-        try:
-            cdata = br.open_novisit(cached_url, timeout=timeout).read()
-            result_queue.put((self, cdata))
-        except:
-            self.log.exception('Failed to download cover from:', cached_url)
+        self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
 
     def get_book_url(self, identifiers):
         '''
@@ -352,7 +325,7 @@ class Palmknihy(Source):
         '''
         ident = identifiers.get(self.name, None)
         if ident:
-            return (self.name, ident, "%sweb/kniha/%s.htm"%(self.BASE_URL,ident))
+            return (self.name, ident, "%skniha-%s"%(self.BASE_URL,ident))
         else:
             return None
 
@@ -394,23 +367,41 @@ if __name__ == '__main__': # tests
     # and run run.bat
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
-    test_identify_plugin(Palmknihy.name,
+    test_identify_plugin(Nkp.name,
         [
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #basic
+#                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+#                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
+#             )
+#            ,
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #edice
+#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                 [title_test('Zlodějka knih', exact=False)]
+#             )
+#            ,
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #serie
+#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+#                 [title_test('Hra o trůny', exact=False)]
+#             )
+#            ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+#                 [title_test('Meč osudu', exact=False)]
+#             )
+#             ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
+#                 [title_test('Dilvermoon', exact=False)]
+#             )
+#             ,
             (
-                {'identifiers':{'test-case':'long search'},
-                 'title': 'Kříž', 'authors':['Ken Bruen']},
-                [title_test('Kříž', exact=False)]
+                {'identifiers':{}, #short story
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
             )
-#             ,
-#             (
-#                 {'identifiers':{'test-case':'redirect search'},
-#                  'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
-#                 [title_test('Bestie uvnitř', exact=False)]
-#             )
-#             ,
-#             (
-#                 {'identifiers':{'test-case':'simple book'},
-#                  'title': 'Duna', 'authors':['Frank Herbert']},
-#                 [title_test('Duna', exact=False)]
-#             )
         ])

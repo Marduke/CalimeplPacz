@@ -39,7 +39,7 @@ class Log(object):
             prefix = '%s - %s.%s(%s): '%(str(datetime.now()),self.name, frame[3],frame[2])
             self.parent_log.prints(level, prefix, *args, **kwargs)
 
-    def filelog(self, content, path = "\test.html"):
+    def filelog(self, content, path = "\\test.html"):
         self.__call__("writing %i B to file %s"%(len(content),path))
         try:
             f = open(path, "w")
