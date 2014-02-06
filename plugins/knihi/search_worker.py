@@ -12,7 +12,6 @@ from calibre.utils.cleantext import clean_ascii_chars
 from lxml.html import fromstring
 from lxml import etree
 from log import Log #REPLACE from calibre_plugins.knihi.log import Log
-import re
 
 #Single Thread to process one page of search page
 class SearchWorker(Thread):
@@ -41,15 +40,12 @@ class SearchWorker(Thread):
 
             if raw is not None:
                 try:
-                    parser = etree.XMLParser(recover=True)
+                    parser = etree.HTMLParser()
                     clean = clean_ascii_chars(raw)
-                    clean = re.sub("<br>", "<br/>", clean)
-                    clean = re.sub("&nbsp;", " ", clean)
-                    clean = re.sub("&hellip;", "...", clean)
                     self.xml = fromstring(clean, parser=parser)
-                    if len(parser.error_log) > 0: #some errors while parsing
-                        self.log('while parsing page occus some errors:')
-                        self.log(parser.error_log)
+#                     if len(parser.error_log) > 0: #some errors while parsing
+#                         self.log('while parsing page occus some errors:')
+#                         self.log(parser.error_log)
 
                 except Exception as e:
                     self.log.exception('Failed to parse xml for url: %s'%url)
@@ -57,22 +53,19 @@ class SearchWorker(Thread):
         self.parse()
 
     def parse(self):
-        entries = self.xml.xpath('//div[@class="works paging-container scrollable"]/div[@id]/div[@class="book-info"]')
+        entries = self.xml.xpath('//table[@class="mezera"]//tr/td[last()]')
         for book_ref in entries:
-            title = book_ref.xpath('.//h3/a')
-            authors = book_ref.xpath('.//span/a/text()')
+            title = book_ref.xpath('./div/h1/a')
+            authors = book_ref.xpath('./h3/a/text()')
             auths = [] #authors surnames
             for i in authors:
                 auths.append(i.split(" ")[-1])
 
             if len(title) > 0:
                 url = title[0].get("href")
-                index = url.rfind('/')
-                url = url[:index]
                 add = (url, title[0].text, auths)
+                self.log(add)
                 if self.identif is None or title != self.identif:
                     self.queue.put(add)
             else:
                 self.log('title not found')
-
-

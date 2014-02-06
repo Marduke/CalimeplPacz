@@ -34,7 +34,7 @@ class Knihi(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://knihi.cz/'
+    BASE_URL = 'http://www.knihi.cz/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
@@ -74,12 +74,12 @@ class Knihi(Source):
     '''
     Set of capabilities supported by this plugin. Useful capabilities are: ‘identify’, ‘cover’
     '''
-    capabilities = frozenset(['identify', 'cover'])
+    capabilities = frozenset(['identify'])
 
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'identifier:knihi', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'comments', 'identifier:knihi', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -163,17 +163,20 @@ class Knihi(Source):
             return as_unicode(e)
 
         try:
-            parser = etree.XMLParser(recover=True)
+            parser = etree.HTMLParser()
             clean = clean_ascii_chars(raw)
             feed = fromstring(clean, parser=parser)
+            self.log.filelog(clean)
 
             more_pages = pages_count(feed)
             #more pages with search results
             que = Queue()
             if ident is not None:
                 que.put(["-%s"%ident, title, authors])
-            self.log(more_pages)
-            page_max = int(more_pages[0])
+            if len(more_pages) > 0:
+                page_max = int(more_pages[0])
+            else:
+                page_max = 1
 
             sworkers = []
             sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
@@ -205,14 +208,16 @@ class Knihi(Source):
                 except Empty:
                     break
 
+            self.log('Found %i matches'%len(tmp_entries))
+
             if len(tmp_entries) > self.prefs['max_search']:
                 tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
                 tmp_entries = tmp_entries[:self.prefs['max_search']]
 
             for val in tmp_entries:
                 found.append(val[0])
-
-            self.log('Found %i matches'%len(found))
+#TODO: all plugins - log found and fitlered into 2 log messages
+            self.log('Filtred to %i matches'%len(found))
 
         except Exception as e:
             self.log.exception('Failed to parse identify results')
@@ -257,66 +262,10 @@ class Knihi(Source):
             q = q.encode('utf-8')
         if not q:
             return None
-        if number == 1:
-            return self.BASE_URL+'search.php?'+urlencode({
-                'search':q
-            })
-        else:
-            return self.BASE_URL+'search.php?'+urlencode({
-                'search':q,
-                'zacatek':(number - 1)*10
-            })
-
-    def get_cached_cover_url(self, identifiers):
-        '''
-        Return cached cover URL for the book identified by the identifiers dict or None if no such URL exists.
-        Note that this method must only return validated URLs, i.e. not URLS that could result in a generic cover image or a not found error.
-        '''
-        url = None
-        ident = identifiers.get(self.name, None)
-        if ident is not None:
-            url = self.cached_identifier_to_cover_url(ident)
-        return url
-
-    def download_cover(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30, get_best_cover=False):
-        '''
-        Download a cover and put it into result_queue. The parameters all have the same meaning as for identify(). Put (self, cover_data) into result_queue.
-        This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
-        If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
-        '''
-        self.log = Log(self.name, log)
-        cached_url = self.get_cached_cover_url(identifiers)
-        if cached_url is None:
-            self.log('No cached cover found, running identify')
-            rq = Queue()
-            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
-            if abort.is_set():
-                return
-            results = []
-            while True:
-                try:
-                    results.append(rq.get_nowait())
-                except Empty:
-                    break
-            results.sort(key=self.identify_results_keygen(
-                title=title, authors=authors, identifiers=identifiers))
-            for mi in results:
-                cached_url = self.get_cached_cover_url(mi.identifiers)
-                if cached_url is not None:
-                    break
-        if cached_url is None:
-            log.info('No cover found')
-            return
-
-        if abort.is_set():
-            return
-        br = self.browser
-        self.log('Downloading cover from:%s'%cached_url)
-        try:
-            cdata = br.open_novisit(cached_url, timeout=timeout).read()
-            result_queue.put((self, cdata))
-        except:
-            self.log.exception('Failed to download cover from:', cached_url)
+        return self.BASE_URL+'search.php?'+urlencode({
+            'q':q,
+            'zacatek':(number - 1)*10
+        })
 
     def get_book_url(self, identifiers):
         '''
@@ -378,21 +327,21 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Knihi.name,
         [
-#             (
-#                 {'identifiers':{'test-case':'long search'},
-#                  'title': 'Vlk', 'authors':['E. E Knight']},
-#                 [title_test('Vlk', exact=False)]
-#             )
-#             ,
-#             (
-#                 {'identifiers':{'test-case':'redirect search'},
-#                  'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
-#                 [title_test('Bestie uvnitř', exact=False)]
-#             )
-#             ,
             (
-                {'identifiers':{'test-case':'simple book'},
-                 'title': 'Duna', 'authors':['Frank Herbert']},
-                [title_test('Duna', exact=False)]
+                {'identifiers':{}, #serie
+                 'title': 'Tanec s carevnou', 'authors':['Petra Neomillnerová']},
+                [title_test('Tanec s carevnou', exact=False)]
             )
+#             ,
+#             (
+#                 {'identifiers':{}, #tags
+#                  'title': '3x soukromý detektiv Lew Archer', 'authors':['Ross Macdonald']},
+#                 [title_test('3x soukromý detektiv Lew Archer', exact=False)]
+#             )
+#             ,
+#             (
+#                 {'identifiers':{}, #simple book
+#                  'title': 'Duna', 'authors':['Frank Herbert']},
+#                 [title_test('Duna', exact=False)]
+#             )
         ])
