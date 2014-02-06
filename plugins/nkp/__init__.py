@@ -106,6 +106,9 @@ class Nkp(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
+               Option('search_advanced', 'bool', False,
+                      'Hledat podle autora',
+                      'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
     )
 
     '''
@@ -122,6 +125,30 @@ class Nkp(Source):
     If set to True covers downloaded by this plugin are automatically trimmed.
     '''
     auto_trim_covers = False
+
+    def download_parse(self, query, timeout):
+        br = self.browser
+        try:
+            self.log('download page search %s'%query)
+            raw = br.open(query, timeout=timeout).read().strip()
+        except Exception as e:
+            self.log.exception('Failed to make identify query: %r'%query)
+            return as_unicode(e)
+
+        try:
+            parser = etree.HTMLParser(recover=True)
+            clean = clean_ascii_chars(raw)
+            self.log.filelog(clean, "\\tmp\\test.html")
+            feed = fromstring(clean, parser=parser)
+#             if len(parser.error_log) > 0: #some errors while parsing
+#                 self.log('while parsing page occus some errors:')
+#                 self.log(parser.error_log)
+
+            return feed
+        except Exception as e:
+            self.log.exception('Failed to parse identify results')
+            return as_unicode(e)
+
 
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30):
         '''
@@ -152,8 +179,9 @@ class Nkp(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
-        detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
+        result_url = XPath('//form[@name="form1"]/table//tr[last() - 1]/td[last()]/a/@href')
+        detail_test = XPath('//table[@id="record"]//tr[last()]/td[2]/text()')
+        entry = XPath('//tr[@id="Název"]/td[2]')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -161,70 +189,57 @@ class Nkp(Source):
             self.log('Insufficient metadata to construct query')
             return
 
-        br = self.browser
-        try:
-            self.log('download page search %s'%query)
-            raw = br.open(query, timeout=timeout).read().strip()
-            #fix, time limited action, broke HTML
-            raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
-        except Exception as e:
-            self.log.exception('Failed to make identify query: %r'%query)
-            return as_unicode(e)
+        feed = self.download_parse(query, timeout)
+        url = result_url(feed)[0]
+        self.log("Find result url: %s"%url)
 
-        try:
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(raw)
-            self.log.filelog(clean)
-            feed = fromstring(clean, parser=parser)
+        result = self.download_parse(url, timeout)
+        detail = detail_test(result)
+        if len(detail) > 0:
+            xml = result
+            detail_ident = detail[0]
+            if ident is not None and detail_ident != ident:
+                found.append(ident)
+        else:
+            entries = entry(result)
+            self.log('Found %i matches'%len(entries))
+            act_authors = []
+            for act in authors:
+                act_authors.append(act.split(" ")[-1])
 
-            entries = entry(feed)
-            if len(entries) == 0:
-                xml = feed
-                detail_ident = detail_test(feed)[0].split("-")[-1]
-                if ident is not None and detail_ident != ident:
-                    found.append(ident)
-            else:
-                self.log('Found %i matches'%len(entries))
-                act_authors = []
-                for act in authors:
-                    act_authors.append(act.split(" ")[-1])
+            ident_found = False
+            tmp_entries = []
+            for book_ref in entries:
+                tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                auths = [] #authors surnames
+                for i in (tmp[1:]):
+                    auths.append(i.text.split(" ")[-1])
+                add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
+                if tmp[0].get('href').split('-')[1] == ident:
+                    ident_found = True
+                tmp_entries.append(add)
 
-                ident_found = False
-                tmp_entries = []
-                for book_ref in entries:
-                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-                    auths = [] #authors surnames
-                    for i in (tmp[1:]):
-                        auths.append(i.text.split(" ")[-1])
-                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-                    if tmp[0].get('href').split('-')[1] == ident:
-                        ident_found = True
-                    tmp_entries.append(add)
+            if not ident_found and ident is not None:
+                tmp_entries.append(["-%i"%ident, title, authors],)
 
-                if not ident_found and ident is not None:
-                    tmp_entries.append(["-%i"%ident, title, authors],)
+            if len(tmp_entries) > self.prefs['max_search']:
+                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                tmp_entries = tmp_entries[:self.prefs['max_search']]
 
-                if len(tmp_entries) > self.prefs['max_search']:
-                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                    tmp_entries = tmp_entries[:self.prefs['max_search']]
-
-                for val in tmp_entries:
-                    found.append(val[0])
-
-        except Exception as e:
-            self.log.exception('Failed to parse identify results')
-            return as_unicode(e)
+            for val in tmp_entries:
+                found.append(val[0])
 
         if ident and found.count(ident) > 0:
             found.remove(ident)
             found.insert(0, ident)
 
         try:
-            workers = []
+            br = self.browser
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
                 workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
-            workers += [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
+            else:
+                workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -325,7 +340,7 @@ class Nkp(Source):
         '''
         ident = identifiers.get(self.name, None)
         if ident:
-            return (self.name, ident, "%skniha-%s"%(self.BASE_URL,ident))
+            return (self.name, ident, "%sF/?func=direct&doc_number=%s&local_base=NKC"%(self.BASE_URL,ident))
         else:
             return None
 

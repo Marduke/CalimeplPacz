@@ -35,15 +35,10 @@ class Worker(Thread):
         self.cover_url = self.isbn = None
         self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
         self.xml = xml
-        if xml is not None:
-            self.number = int(ident)
-        else:
-            self.number = int(self.ident.split('-')[1])
-
-        self.log = Log("worker %i"%self.number, log)
+        self.log = Log("worker %s"%self.ident, log)
 
     def initXPath(self):
-        self.xpath_title = self.XPath('//x:span[@itemprop="name"]/text()')
+        self.xpath_title = self.XPath('//table[@id="record"]//tr[2]/td[2]/a//text()')
         self.xpath_authors = self.XPath('//x:a[@itemprop="author"]/x:strong/text()')
         self.xpath_comments = self.XPath('//x:div[@id="annotation"]/text()')
         self.xpath_stars = self.XPath('//x:span[@id="book_rating_text"]/text()')
@@ -88,7 +83,7 @@ class Worker(Thread):
             mi = Metadata(title, authors)
             mi.languages = {'ces'}
             mi.comments = as_unicode(comments)
-            mi.identifiers = {self.plugin.name:str(self.number)}
+            mi.identifiers = {self.plugin.name:self.ident}
             mi.rating = rating
             mi.tags = tags
             mi.publisher = publisher
@@ -99,7 +94,7 @@ class Worker(Thread):
             mi.cover_url = cover
 
             if cover:
-                self.plugin.cache_identifier_to_cover_url(str(self.number), cover)
+                self.plugin.cache_identifier_to_cover_url(self.ident, cover)
 
             return mi
         else:
@@ -107,7 +102,10 @@ class Worker(Thread):
 
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
+        self.log(tmp)
         if len(tmp) > 0:
+            result = "".join(tmp).strip()
+            self.log(result)
             self.log('Found title:%s'%tmp[0])
             return tmp[0]
         else:
