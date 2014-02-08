@@ -79,7 +79,7 @@ class Nkp(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'rating', 'identifier:nkp', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'publisher', 'identifier:isbn', 'identifier:nkp', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -138,8 +138,11 @@ class Nkp(Source):
         try:
             parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(raw)
+
             self.log.filelog(clean, "\\tmp\\test.html")
             feed = fromstring(clean, parser=parser)
+            self.log.filelog(etree.tostring(feed), "\\tmp\\test2.html")
+
 #             if len(parser.error_log) > 0: #some errors while parsing
 #                 self.log('while parsing page occus some errors:')
 #                 self.log(parser.error_log)
@@ -264,7 +267,6 @@ class Nkp(Source):
         '''
         create url for HTTP request
         '''
-        from urllib import urlencode
         q = ''
         if title:
             q += ' '.join(self.get_title_tokens(title))
@@ -273,8 +275,11 @@ class Nkp(Source):
         if not q:
             return None
 
-        auth = authors[0].split(' ')[-1]
-        return "%s/F?func=find-d&find_code=WRD&request=%s&adjacent1=N&find_code=WRD&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
+        if self.prefs['search_advanced']:
+            auth = authors[0].split(' ')[-1]
+            return "%s/F?func=find-d&find_code=WRD&request=%s&adjacent1=N&find_code=WRD&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
+        else:
+            return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
 
     def get_cached_cover_url(self, identifiers):
         '''
@@ -294,13 +299,11 @@ class Nkp(Source):
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
         self.log = Log(self.name, log)
-        cached_urls = self.get_cached_cover_url(identifiers)
-        if not title:
-            return
-        if not cached_urls:
+        cached_url = self.get_cached_cover_url(identifiers)
+        if cached_url is None:
             self.log('No cached cover found, running identify')
             rq = Queue()
-            self.identify(log, rq, abort, title, authors, identifiers, timeout)
+            self.identify(log, rq, abort, title=title, authors=authors, identifiers=identifiers)
             if abort.is_set():
                 return
             results = []
@@ -312,17 +315,22 @@ class Nkp(Source):
             results.sort(key=self.identify_results_keygen(
                 title=title, authors=authors, identifiers=identifiers))
             for mi in results:
-                cached_urls = self.get_cached_cover_url(mi.identifiers)
-                if cached_urls is not None:
+                cached_url = self.get_cached_cover_url(mi.identifiers)
+                if cached_url is not None:
                     break
-
-        if cached_urls is None:
+        if cached_url is None:
             log.info('No cover found')
             return
-        self.log("Covers:%s"%cached_urls)
+
         if abort.is_set():
             return
-        self.download_multiple_covers(title, authors, cached_urls, get_best_cover, timeout, result_queue, abort, log)
+        br = self.browser
+        self.log('Downloading cover from:%s'%cached_url)
+        try:
+            cdata = br.open_novisit(cached_url, timeout=timeout).read()
+            result_queue.put((self, cdata))
+        except:
+            self.log.exception('Failed to download cover from:', cached_url)
 
     def get_book_url(self, identifiers):
         '''
