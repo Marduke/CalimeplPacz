@@ -21,6 +21,7 @@ from Queue import Queue, Empty
 from nkp.worker import Worker #REPLACE from calibre_plugins.nkp.worker import Worker
 from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.nkp.metadata_compare import MetadataCompareKeyGen
 from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.nkp.pre_filter_compare import PreFilterMetadataCompare
+from nkp.search_worker import SearchWorker #REPLACE from calibre_plugins.nkp.search_worker import SearchWorker
 from log import Log #REPLACE from calibre_plugins.nkp.log import Log
 
 class Nkp(Source):
@@ -185,6 +186,8 @@ class Nkp(Source):
         result_url = XPath('//form[@name="form1"]/table//tr[last() - 1]/td[last()]/a/@href')
         detail_test = XPath('//table[@id="record"]//tr[last()]/td[2]/text()')
         entry = XPath('//tr[@id="Název"]/td[2]')
+        result_count = XPath('//td[@id="bold"]/text()')
+        next_url = XPath('//a[@title="Next"]/@href')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -193,44 +196,73 @@ class Nkp(Source):
             return
 
         feed = self.download_parse(query, timeout)
-        url = result_url(feed)[0]
-        self.log("Find result url: %s"%url)
+        list_test = result_url(feed)
+        if len(list_test) > 0:
+            url = list_test[0]
+            self.log("Find result url: %s"%url)
 
-        result = self.download_parse(url, timeout)
-        detail = detail_test(result)
-        if len(detail) > 0:
-            xml = result
-            detail_ident = detail[0]
-            if ident is not None and detail_ident != ident:
-                found.append(ident)
+            result = self.download_parse(url, timeout)
+            detail = detail_test(result)
+            if len(detail) > 0:
+                xml = result
+                detail_ident = detail[0]
+                if ident is not None and detail_ident != ident:
+                    found.append(ident)
         else:
-            entries = entry(result)
-            self.log('Found %i matches'%len(entries))
-            act_authors = []
-            for act in authors:
-                act_authors.append(act.split(" ")[-1])
+            tmp = result_count(feed)
+            results = int(re.findall("\d+", tmp[0])[-1])
+            more_pages = result_count(feed)
+            #more pages with search results
+            que = Queue()
+            if ident is not None:
+                que.put(["-%s"%ident, title, authors])
+            page_max = int(results / 10)
+            if results % 10 > 0:
+                page_max += 1
 
-            ident_found = False
-            tmp_entries = []
-            for book_ref in entries:
-                tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
-                auths = [] #authors surnames
-                for i in (tmp[1:]):
-                    auths.append(i.text.split(" ")[-1])
-                add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-                if tmp[0].get('href').split('-')[1] == ident:
-                    ident_found = True
-                tmp_entries.append(add)
+            if page_max > 3:
+                page_max = 3
 
-            if not ident_found and ident is not None:
-                tmp_entries.append(["-%i"%ident, title, authors],)
+            nurl = next_url(feed)
+            nurl = nurl[0][:nurl[0].rfind('=')]
+            self.nurl = nurl
 
-            if len(tmp_entries) > self.prefs['max_search']:
-                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                tmp_entries = tmp_entries[:self.prefs['max_search']]
+            sworkers = []
+            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
+            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
 
-            for val in tmp_entries:
-                found.append(val[0])
+            for w in sworkers:
+                w.start()
+                time.sleep(0.1)
+
+            while not abort.is_set():
+                a_worker_is_alive = False
+                for w in sworkers:
+                    w.join(0.2)
+                    if abort.is_set():
+                        break
+                    if w.is_alive():
+                        a_worker_is_alive = True
+                if not a_worker_is_alive:
+                    break
+
+                act_authors = []
+                for act in authors:
+                    act_authors.append(act.split(" ")[-1])
+
+                tmp_entries = []
+                while True:
+                    try:
+                        tmp_entries.append(que.get_nowait())
+                    except Empty:
+                        break
+
+                if len(tmp_entries) > self.prefs['max_search']:
+                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                    tmp_entries = tmp_entries[:self.prefs['max_search']]
+
+                for val in tmp_entries:
+                    found.append(val[0])
 
         if ident and found.count(ident) > 0:
             found.remove(ident)
@@ -263,7 +295,7 @@ class Nkp(Source):
 
         return None
 
-    def create_query(self, title=None, authors=None, identifiers={}):
+    def create_query(self, title=None, authors=None, identifiers={}, number=1):
         '''
         create url for HTTP request
         '''
@@ -279,7 +311,11 @@ class Nkp(Source):
             auth = authors[0].split(' ')[-1]
             return "%s/F?func=find-d&find_code=WRD&request=%s&adjacent1=N&find_code=WRD&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
         else:
-            return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
+            self.log(number)
+            if number == 1:
+                return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
+            else:
+                return "%s=%d"%(self.nurl, number * 10 + 1)
 
     def get_cached_cover_url(self, identifiers):
         '''
