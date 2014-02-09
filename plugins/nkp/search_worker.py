@@ -55,14 +55,16 @@ class SearchWorker(Thread):
     def parse(self):
         entries = self.xml.xpath('//table[@id="short_table"]//tr')
         for book_ref in entries:
-            title = book_ref.xpath('.//td[3]//text()')
-            authors = book_ref.xpath('.//td[4]/text()')
+            title = book_ref.xpath('./td[3]/text()')
+            link = book_ref.xpath('./td[1]/a/@href')
+            authors = book_ref.xpath('./td[4]/text()')
             auths = [] #authors surnames
             for i in authors:
                 if i.strip() != "":
-                    self.log(i.split(','))
+                    split = i.split(',')
+
                     auths.append("a")
-            self.log([title, auths])
+            self.log([title, link, auths])
 #
 #             if len(title) > 0:
 #                 url = title[0].get("href")
