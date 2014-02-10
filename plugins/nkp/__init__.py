@@ -107,7 +107,7 @@ class Nkp(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
-               Option('search_advanced', 'bool', False,
+               Option('search_advanced', 'bool', True,
                       'Hledat podle autora',
                       'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
     )
@@ -185,7 +185,6 @@ class Nkp(Source):
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         result_url = XPath('//form[@name="form1"]/table//tr[last() - 1]/td[last()]/a/@href')
         detail_test = XPath('//table[@id="record"]//tr[last()]/td[2]/text()')
-        entry = XPath('//tr[@id="Název"]/td[2]')
         result_count = XPath('//td[@id="bold"]/text()')
         next_url = XPath('//a[@title="Next"]/@href')
 
@@ -204,47 +203,54 @@ class Nkp(Source):
             result = self.download_parse(url, timeout)
             detail = detail_test(result)
             if len(detail) > 0:
+                #TODO: sometimes redirect and sometimes not
+                self.log("a")
                 xml = result
                 detail_ident = detail[0]
-                if ident is not None and detail_ident != ident:
-                    found.append(ident)
+                self.log(detail_ident)
+#                 if ident is not None and detail_ident != ident:
+                found.append(detail_ident)
+            else:
+                self.log('b')
         else:
-            tmp = result_count(feed)
-            results = int(re.findall("\d+", tmp[0])[-1])
-            more_pages = result_count(feed)
-            #more pages with search results
-            que = Queue()
-            if ident is not None:
-                que.put(["-%s"%ident, title, authors])
-            page_max = int(results / 10)
-            if results % 10 > 0:
-                page_max += 1
+            self.log('c')
+            try:
+                tmp = result_count(feed)
+                results = int(re.findall("\d+", tmp[0])[-1])
+                #more pages with search results
+                que = Queue()
+                if ident is not None:
+                    que.put(["-%s"%ident, title, authors])
+                page_max = int(results / 10)
+                if results % 10 > 0:
+                    page_max += 1
 
-            if page_max > 3:
-                page_max = 3
+                #TODO: remove
+#                 if page_max > 1:
+#                     page_max = 1
 
-            nurl = next_url(feed)
-            nurl = nurl[0][:nurl[0].rfind('=')]
-            self.nurl = nurl
+                nurl = next_url(feed)
+                nurl = nurl[0][:nurl[0].rfind('=')]
+                self.nurl = nurl
 
-            sworkers = []
-            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
-            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+                sworkers = []
+                sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
+                sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
 
-            for w in sworkers:
-                w.start()
-                time.sleep(0.1)
-
-            while not abort.is_set():
-                a_worker_is_alive = False
                 for w in sworkers:
-                    w.join(0.2)
-                    if abort.is_set():
+                    w.start()
+                    time.sleep(0.1)
+
+                while not abort.is_set():
+                    a_worker_is_alive = False
+                    for w in sworkers:
+                        w.join(0.2)
+                        if abort.is_set():
+                            break
+                        if w.is_alive():
+                            a_worker_is_alive = True
+                    if not a_worker_is_alive:
                         break
-                    if w.is_alive():
-                        a_worker_is_alive = True
-                if not a_worker_is_alive:
-                    break
 
                 act_authors = []
                 for act in authors:
@@ -257,19 +263,29 @@ class Nkp(Source):
                     except Empty:
                         break
 
+                self.log('Found %i matches'%len(tmp_entries))
+
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
                     tmp_entries = tmp_entries[:self.prefs['max_search']]
 
                 for val in tmp_entries:
                     found.append(val[0])
+                self.log('Filtered to %i matches'%len(found))
+
+            except Exception as e:
+                self.log.exception('Failed to parse identify results')
+                return as_unicode(e)
+
 
         if ident and found.count(ident) > 0:
             found.remove(ident)
             found.insert(0, ident)
 
+
         try:
             br = self.browser
+            self.log(found)
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
                 workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
@@ -309,11 +325,10 @@ class Nkp(Source):
 
         if self.prefs['search_advanced']:
             auth = authors[0].split(' ')[-1]
-            return "%s/F?func=find-d&find_code=WRD&request=%s&adjacent1=N&find_code=WRD&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
+            return "%s/F?func=find-d&find_code=WTL&request=%s&adjacent1=N&find_code=WAU&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
         else:
-            self.log(number)
             if number == 1:
-                return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
+                return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=BK&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
             else:
                 return "%s=%d"%(self.nurl, number * 10 + 1)
 

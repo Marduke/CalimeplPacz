@@ -35,6 +35,10 @@ class Worker(Thread):
         self.cover_url = self.isbn = None
         self.XPath = partial(etree.XPath, namespaces=plugin.NAMESPACES)
         self.xml = xml
+        if self.ident.startswith("http"):
+            self.url = self.ident
+            num = re.search("set_entry=\d+", self.ident).group().split('=')[1]
+            self.ident = num
         self.log = Log("worker %s"%self.ident, log)
 
     def run(self):
@@ -54,27 +58,37 @@ class Worker(Thread):
             self.log('Download metadata failed for: %r'%self.ident)
 
     def parse(self, xml_detail):
+        sys_ident = title = isbn = publisher = pub_year = serie = serie_index = cover = None
+        authors = []
+        tags = []
         xpath = self.XPath('//table[@id="record"]//tr')
         for row in xpath(xml_detail):
-            ch = row.getchildren()
-            if ch[0].text == 'Název':
-                title, authors = self.parse_title_authors(ch[1])
-            elif ch[0].text =='ISBN':
-                isbn = self.parse_isbn(ch[1])
-            elif ch[0].text == 'Nakl. údaje':
-                publisher, pub_year = self.parse_publisher(ch[1])
-            elif ch[0].text == 'Edice':
-                serie, serie_index = self.parse_serie(ch[1])
-            elif ch[0].text == 'Forma, žánr':
-                tags = self.parse_tags(ch[1])
 
-        if isbn is not None:
+            ch = row.getchildren()
+            txt = ch[0].text.strip()
+            data = self.normalize(ch[1].text)
+            if txt.startswith('245') and title is None:
+                title = self.parse_title(data)
+            elif txt.startswith('100') or txt.startswith('700'):
+                authors.append(self.parse_author(data))
+            elif txt == 'SYS':
+                sys_ident = data
+            elif txt =='020':
+                isbn = self.parse_isbn(data)
+            elif txt == '260':
+                publisher, pub_year = self.parse_publisher(data)
+            elif txt.startswith('490') and serie is None:
+                serie, serie_index = self.parse_serie(data)
+            elif txt == '655 7':
+                tags.append(self.parse_tags(data))
+
+        if isbn is not None and isbn != '':
             cover = self.parse_cover(isbn)
 
-        if title is not None and authors is not None:
+        if title is not None and len(authors) > 0 and sys_ident is not None:
             mi = Metadata(title, authors)
             mi.languages = {'ces'}
-            mi.identifiers = {self.plugin.name:self.ident}
+            mi.identifiers = {self.plugin.name:sys_ident}
             mi.tags = tags
             mi.publisher = publisher
             mi.pubdate = pub_year
@@ -84,23 +98,29 @@ class Worker(Thread):
             mi.cover_url = cover
 
             if cover:
-                self.plugin.cache_identifier_to_cover_url(self.ident, cover)
+                self.log("store cached img %s for %s"%(cover, sys_ident))
+                self.plugin.cache_identifier_to_cover_url(sys_ident, cover)
 
             return mi
         else:
+            self.log('Data not found')
             return None
 
-    def parse_title_authors(self, data):
-        tmp = data.xpath('.//text()')
-        part = "".join(tmp).strip().split(';')[0].split('/')
-        title = part[0]
-        authors = []
-        for s in part[1].split('a'):
-            authors.append(s.strip())
-
+    def parse_title(self, data):
+        title = data['a'].split('/')[0]
         self.log('Found title:%s'%title)
-        self.log('Found authors:%s'%authors)
-        return [title, authors]
+        return title
+
+    def parse_author(self, data):
+        parts = data['a'].split(',')
+        filtred = []
+        for part in parts:
+            tmp = part.strip()
+            if tmp != '':
+                filtred.append(tmp)
+        author = " ".join(filtred[1:]).strip() + " " + filtred[0]
+        self.log('Found author:%s'%author)
+        return author
 
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
@@ -116,34 +136,43 @@ class Worker(Thread):
             return None
 
     def parse_isbn(self, data):
-        tmp = data.text
-        isbn = tmp.split(' ')[0]
-        self.log('Found ISBN:%s'%isbn)
-        return isbn
+        isbn = data['a'].strip().split(' ')[0].strip()
+        if self.isbn_valid(isbn):
+            self.log('Found ISBN:%s'%isbn)
+            return isbn
+        else:
+            self.log('Found invalid ISBN:%s skiped...'%isbn)
+            return None
+
+    def isbn_valid(self, isbn):
+        num = 0
+        for c in isbn:
+            if c >= '0' and c <= '9':
+                num += 1
+            elif c == '-':
+                pass
+            else:
+                return False
+        return num == 10 or num == 13
 
     def parse_publisher(self, data):
-        tmp = data.text
-        part = tmp.split(':')[1].split(',')
-        publisher = part[0].strip()
-        pub_year = self.prepare_date(int(part[1].strip()))
+        publisher = data['b'].split(',')[0]
+        pub_date = self.prepare_date(int(re.search("\d+", data['c']).group()))
         self.log('Found publisher:%s'%publisher)
-        self.log('Found pub date:%s'%pub_year)
-        return [publisher, pub_year]
+        self.log('Found pub date:%s'%pub_date)
+        return [publisher, pub_date]
 
     def parse_tags(self, data):
-        parts = data.text.split('*')
-        tags = []
-        for p in parts:
-            if len(p) > 0 :
-                tags.append(p.strip())
-        self.log('Found tags:%s'%tags)
-        return tags
+        tag = data['a'].strip()
+        self.log('Found tag:%s'%tag)
+        return tag
 
     def parse_serie(self, data):
-        tmp = data.text
-        parts = tmp.split(';')
-        serie = parts[0].strip()
-        serie_index = re.search("\d+", parts[1]).group()
+        serie = data['a'].split(';')[0].strip()
+        if data.has_key('v'):
+            serie_index = re.search("\d+", data['v']).group()
+        else:
+            serie_index = 0
         self.log('Found serie:%s[%s]'%(serie,serie_index))
         return [serie, serie_index]
 
@@ -159,33 +188,41 @@ class Worker(Thread):
             self.log.exception('Failed to make download : %r'%url)
             return None
 
-        url = re.search('cover_url:".*"', data).group()
-        url = url[11:-1]
-        self.log("Found cover:%s"%url)
-        return url
-
-#         xml. xpath('//img/@src')
-#         self.log(tmp)
-#         if len(tmp) > 0:
-#             self.log('Found covers:%s'%tmp[0])
-#             return tmp[0]
-#         else:
-#             self.log('Found covers:None')
-#             return None
+        if len(data) > 0:
+            url = re.search('cover_url:".*"', data).group()
+            url = url[11:-1]
+            self.log("Found cover:%s"%url)
+            return url
+        return None
 
     def download_detail(self):
-        query = self.plugin.BASE_URL + self.ident
+        if self.url is None:
+            query = self.plugin.BASE_URL + self.ident
+        else:
+            query = re.sub("format=999", "format=001", self.url)
         br = self.browser
         try:
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
-            parser = etree.XMLParser(recover=True)
+            parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(data)
             xml = fromstring(clean,  parser=parser)
             return xml
         except Exception as e:
             self.log.exception('Failed to make download : %r'%query)
             return None
+
+    def normalize(self, txt):
+        if txt is None:
+            return None
+        if '|' in txt:
+            result = {}
+            parts = txt.split('|')
+            for tmp in parts[1:]:
+                result[tmp[0]] = tmp[1:].strip()
+            return result
+        else:
+            return txt
 
     def prepare_date(self,year):
         from calibre.utils.date import utc_tz

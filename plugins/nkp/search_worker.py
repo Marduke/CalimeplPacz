@@ -43,9 +43,9 @@ class SearchWorker(Thread):
                     parser = etree.HTMLParser(recover=True)
                     clean = clean_ascii_chars(raw)
                     self.xml = fromstring(clean, parser=parser)
-                    if len(parser.error_log) > 0: #some errors while parsing
-                        self.log('while parsing page occus some errors:')
-                        self.log(parser.error_log)
+#                     if len(parser.error_log) > 0: #some errors while parsing
+#                         self.log('while parsing page occus some errors:')
+#                         self.log(parser.error_log)
 
                 except Exception as e:
                     self.log.exception('Failed to parse xml for url: %s'%url)
@@ -62,15 +62,13 @@ class SearchWorker(Thread):
             for i in authors:
                 if i.strip() != "":
                     split = i.split(',')
+                    auth = " ".join(split[1:-1]) + " " + split[0]
+                    auths.append(auth.strip())
+            if len(link) > 0 and len(title) > 0 and len(auths) > 0 and title[0].strip() != '':
 
-                    auths.append("a")
-            self.log([title, link, auths])
-#
-#             if len(title) > 0:
-#                 url = title[0].get("href")
-#                 add = (url, title[0].text, auths)
-#                 self.log(add)
-#                 if self.identif is None or title != self.identif:
-#                     self.queue.put(add)
-#             else:
-#                 self.log('title not found')
+                add = (link[0], title[0].split('/')[0].strip(), auths)
+                self.log(add)
+                if self.identif is None or title != self.identif:
+                    self.queue.put(add)
+                else:
+                    self.log('Incomplete data. Skipping ...')
