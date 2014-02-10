@@ -72,7 +72,7 @@ class Worker(Thread):
             elif txt.startswith('100') or txt.startswith('700'):
                 authors.append(self.parse_author(data))
             elif txt == 'SYS':
-                sys_ident = data
+                sys_ident = data.strip()
             elif txt =='020':
                 isbn = self.parse_isbn(data)
             elif txt == '260':

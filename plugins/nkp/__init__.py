@@ -197,23 +197,18 @@ class Nkp(Source):
         feed = self.download_parse(query, timeout)
         list_test = result_url(feed)
         if len(list_test) > 0:
-            url = list_test[0]
+            url = list_test[0] + "&format=001&set_entry=000001" #force marc format
+            url = re.sub("func=short-0", "func=full-set-set", url)
             self.log("Find result url: %s"%url)
 
             result = self.download_parse(url, timeout)
             detail = detail_test(result)
             if len(detail) > 0:
-                #TODO: sometimes redirect and sometimes not
-                self.log("a")
                 xml = result
                 detail_ident = detail[0]
-                self.log(detail_ident)
-#                 if ident is not None and detail_ident != ident:
-                found.append(detail_ident)
-            else:
-                self.log('b')
+                if ident is not None and detail_ident != ident:
+                    found.append(detail_ident)
         else:
-            self.log('c')
             try:
                 tmp = result_count(feed)
                 results = int(re.findall("\d+", tmp[0])[-1])
@@ -224,10 +219,6 @@ class Nkp(Source):
                 page_max = int(results / 10)
                 if results % 10 > 0:
                     page_max += 1
-
-                #TODO: remove
-#                 if page_max > 1:
-#                     page_max = 1
 
                 nurl = next_url(feed)
                 nurl = nurl[0][:nurl[0].rfind('=')]
@@ -285,7 +276,6 @@ class Nkp(Source):
 
         try:
             br = self.browser
-            self.log(found)
             #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
                 workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]

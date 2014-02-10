@@ -62,10 +62,18 @@ class MetadataCompareKeyGen(object):
         contains_title = 1 if title and \
                 cl_title in cl_title_mi else 2
 
-        author_segments = list(set(mi.authors) & set(authors)) #authors surname list compare
+        auths = []
+        for a in authors:
+            auths.append(a.split(" ")[-1])
+        miauths = []
+        for a in mi.authors:
+            miauths.append(a.split(" ")[-1])
+
+        author_segments = list(set(miauths) & set(auths)) #authors surname list compare
 
         has_cover = 2 if (not source_plugin.cached_cover_url_is_reliable or
                 source_plugin.get_cached_cover_url(mi.identifiers) is None) else 1
+
 
         #changed againt original in Calibre
         #we need another ordering
