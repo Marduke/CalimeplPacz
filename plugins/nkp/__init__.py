@@ -197,13 +197,15 @@ class Nkp(Source):
         feed = self.download_parse(query, timeout)
         list_test = result_url(feed)
         if len(list_test) > 0:
-            url = list_test[0] + "&format=001&set_entry=000001" #force marc format
-            url = re.sub("func=short-0", "func=full-set-set", url)
+            url = list_test[0]
+#             url = list_test[0] + "&format=001&set_entry=000001" #force marc format
+#             url = re.sub("func=short-0", "func=full-set-set", url)
             self.log("Find result url: %s"%url)
 
             result = self.download_parse(url, timeout)
             detail = detail_test(result)
             if len(detail) > 0:
+                self.log('b')
                 xml = result
                 detail_ident = detail[0]
                 if ident is not None and detail_ident != ident:
@@ -300,7 +302,7 @@ class Nkp(Source):
             self.log.exception(e)
 
         return None
-
+#TODO: test mec osudu
     def create_query(self, title=None, authors=None, identifiers={}, number=1):
         '''
         create url for HTTP request
@@ -314,8 +316,11 @@ class Nkp(Source):
             return None
 
         if self.prefs['search_advanced']:
-            auth = authors[0].split(' ')[-1]
-            return "%s/F?func=find-d&find_code=WTL&request=%s&adjacent1=N&find_code=WAU&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
+            self.log(authors)
+            auth = authors[0].strip().split(' ')[-1]
+            self.log([q, auth])
+            q = urlencode({"request":q})
+            return "%s/F?func=find-d&find_code=WTL&%s&adjacent1=N&find_code=WAU&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
         else:
             if number == 1:
                 return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=BK&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
@@ -451,11 +456,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-#                 [title_test('Meč osudu', exact=False)]
-#             )
+            (
+                {'identifiers':{}, #short story
+                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+                [title_test('Meč osudu', exact=False)]
+            )
 #             ,
 #             (
 #                 {'identifiers':{}, #short story
@@ -463,9 +468,9 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
-            )
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+#                 [title_test('Vlk', exact=False)]
+#             )
         ])
