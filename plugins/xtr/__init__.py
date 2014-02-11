@@ -2,13 +2,12 @@
 # vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 from __future__ import (unicode_literals, division, absolute_import, print_function)
 from html5lib.treebuilders import etree_lxml
-from urllib import urlencode
 
 __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
-import re, time
+import re, time, sys, urllib
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
 from calibre.utils.cleantext import clean_ascii_chars
@@ -18,13 +17,13 @@ from lxml.html import fromstring
 from collections import OrderedDict
 from functools import partial
 from Queue import Queue, Empty
-from nkp.worker import Worker #REPLACE from calibre_plugins.nkp.worker import Worker
-from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.nkp.metadata_compare import MetadataCompareKeyGen
-from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.nkp.pre_filter_compare import PreFilterMetadataCompare
-from nkp.search_worker import SearchWorker #REPLACE from calibre_plugins.nkp.search_worker import SearchWorker
-from log import Log #REPLACE from calibre_plugins.nkp.log import Log
+from xtr.worker import Worker #REPLACE from calibre_plugins.xtr.worker import Worker
+from metadata_compare import MetadataCompareKeyGen #REPLACE from calibre_plugins.xtr.metadata_compare import MetadataCompareKeyGen
+from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_plugins.xtr.pre_filter_compare import PreFilterMetadataCompare
+from xtr.search_worker import SearchWorker #REPLACE from calibre_plugins.xtr.search_worker import SearchWorker
+from log import Log #REPLACE from calibre_plugins.xtr.log import Log
 
-class Nkp(Source):
+class Xtr(Source):
 
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
@@ -35,12 +34,12 @@ class Nkp(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://aleph.nkp.cz/'
+    BASE_URL = 'http://xtrance.info/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
     '''
-    name = 'nkp'
+    name = 'xtr'
 
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
@@ -50,7 +49,7 @@ class Nkp(Source):
     '''
     A short string describing what this plugin does
     '''
-    description = u'Download metadata and cover from nkp.cz'
+    description = u'Download metadata and cover from xtrance.info'
 
     '''
     The author of this plugin
@@ -80,7 +79,7 @@ class Nkp(Source):
     '''
     List of metadata fields that can potentially be download by this plugin during the identify phase
     '''
-    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'publisher', 'identifier:isbn', 'identifier:nkp', 'languages'])
+    touched_fields = frozenset(['title', 'authors', 'tags', 'pubdate', 'comments', 'publisher', 'identifier:isbn', 'identifier:xtr', 'languages'])
 
     '''
     Set this to True if your plugin returns HTML formatted comments
@@ -107,9 +106,13 @@ class Nkp(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
-               Option('search_advanced', 'bool', True,
-                      'Hledat podle autora',
-                      'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
+               Option('login', 'string', None,
+                      'Login',
+                      'Login'),
+
+               Option('password', 'string', None,
+                      'Heslo',
+                      'Heslo'),
     )
 
     '''
@@ -120,12 +123,19 @@ class Nkp(Source):
     '''
     If True this source can return multiple covers for a given query
     '''
-    can_get_multiple_covers = True
+    can_get_multiple_covers = False
 
     '''
     If set to True covers downloaded by this plugin are automatically trimmed.
     '''
     auto_trim_covers = False
+
+    def is_configured(self):
+        '''
+        Return False if your plugin needs to be configured before it can be
+        used. For example, it might need a username/password/API key.
+        '''
+        return self.prefs['login'] is not None and self.prefs['password'] is not None
 
     def download_parse(self, query, timeout):
         self.downloads_count += 1
@@ -153,6 +163,22 @@ class Nkp(Source):
             self.log.exception('Failed to parse identify results')
             return as_unicode(e)
 
+    def connect(self):
+        br = self.browser()
+        try:
+            url = "%snew/?top=1"%self.BASE_URL
+
+            parameters = {
+                "loginsendform":"1",
+                "login_name":self.prefs['login'],
+                "login_password":self.prefs['password']
+            }
+
+            data = urllib.urlencode(parameters)
+            br.open(url,data)
+        except Exception as e:
+            self.log.exception(e)
+
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30):
         '''
         Identify a book by its title/author/isbn/etc.
@@ -173,60 +199,49 @@ class Nkp(Source):
         '''
         self.downloads_count = 0
         self.log = Log(self.name, log)
-
         found = []
         xml = None
-        detail_ident = None
 
         #test previous found first
         ident = identifiers.get(self.name, None)
-
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        result_url = XPath('//form[@name="form1"]/table//tr[last() - 1]/td[last()]/a/@href')
-        detail_test = XPath('//table[@id="record"]//tr[last()]/td[2]/text()')
-        result_count = XPath('//td[@id="bold"]/text()')
-        next_url = XPath('//a[@title="Next"]/@href')
+        result_count = XPath('//div[@id="works"]/h2[@class="title"]/span[@class="n_found"]/text()')
+        detail_text = XPath('//div[@class="book content"]/@id')
 
-        query = self.create_query(title=title, authors=authors,
-                identifiers=identifiers)
+        self.connect()
+        query = self.create_query(title=title, authors=authors)
         if not query:
             self.log('Insufficient metadata to construct query')
             return
 
-        feed = self.download_parse(query, timeout)
-        list_test = result_url(feed)
-        if len(list_test) > 0:
-            url = list_test[0]
-            self.log("Find result url: %s"%url)
+        br = self.browser
+        try:
+            self.log('download page search %s'%query)
+            raw = br.open(query, timeout=timeout).read().strip()
+        except Exception as e:
+            self.log.exception('Failed to make identify query: %r'%query)
+            return as_unicode(e)
 
-            result = self.download_parse(url, timeout)
-            detail = detail_test(result)
-            if len(detail) > 0:#single result, redirect
-                detail_ident = detail[0]
-                if ident is None or detail_ident != ident:
-                    found.append(detail_ident)
-                    xml = self.download_parse("%sF/?func=direct&doc_number=%s&local_base=NKC&format=001"%(self.BASE_URL, detail_ident), timeout)
-            else: #list of results as normal search
-                feed = result
-        if xml is None:
-            try:
-                tmp = result_count(feed)
-                if len(tmp) == 0:
-                    self.log("Results not found. Exiting...")
-                    return None
-                results = int(re.findall("\d+", tmp[0])[-1])
+        try:
+            parser = etree.XMLParser(recover=True)
+            clean = clean_ascii_chars(raw)
+            feed = fromstring(clean, parser=parser)
+
+            detail = detail_text(feed)
+            if len(detail) > 0:
+                xml = feed
+                detail_ident = detail[0].split("_")[1]
+                found.append(detail_ident)
+            else:
+                more_pages = result_count(feed)
                 #more pages with search results
                 que = Queue()
                 if ident is not None:
                     que.put(["-%s"%ident, title, authors])
+                results = int(re.compile("\d+").findall(more_pages[0])[0])
                 page_max = int(results / 10)
                 if results % 10 > 0:
                     page_max += 1
-
-                nurl = next_url(feed)
-                if len(nurl) > 0:
-                    nurl = nurl[0][:nurl[0].rfind('=')]
-                    self.nurl = nurl
 
                 sworkers = []
                 sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
@@ -258,29 +273,24 @@ class Nkp(Source):
                     except Empty:
                         break
 
-                self.log('Found %i matches'%len(tmp_entries))
-
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
                     tmp_entries = tmp_entries[:self.prefs['max_search']]
 
                 for val in tmp_entries:
                     found.append(val[0])
-                self.log('Filtered to %i matches'%len(found))
 
-            except Exception as e:
-                self.log.exception('Failed to parse identify results')
-                return as_unicode(e)
+            self.log('Found %i matches'%len(found))
 
+        except Exception as e:
+            self.log.exception('Failed to parse identify results')
+            return as_unicode(e)
 
         if ident and found.count(ident) > 0:
             found.remove(ident)
             found.insert(0, ident)
 
-
         try:
-            br = self.browser
-            #if redirect push to worker actual parsed xml, no need to download and parse it again
             if xml is not None:
                 workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
             else:
@@ -304,30 +314,29 @@ class Nkp(Source):
             self.log.exception(e)
 
         return None
-#TODO: test mec osudu
-    def create_query(self, title=None, authors=None, identifiers={}, number=1):
+
+    def create_query(self, title=None, authors=None, number=1):
         '''
         create url for HTTP request
         '''
+        from urllib import urlencode
         q = ''
         if title:
             q += ' '.join(self.get_title_tokens(title))
+
         if isinstance(q, unicode):
             q = q.encode('utf-8')
         if not q:
             return None
-
-        if self.prefs['search_advanced']:
-            self.log(authors)
-            auth = authors[0].strip().split(' ')[-1]
-            self.log([q, auth])
-            q = urlencode({"request":q})
-            return "%s/F?func=find-d&find_code=WTL&%s&adjacent1=N&find_code=WAU&request=%s&adjacent2=N&find_code=WRD&request=&adjacent3=N&x=0&y=0&filter_code_1=WLN&filter_request_1=&filter_code_2=WPV&filter_request_2=&filter_code_3=WTP&filter_request_3=&filter_code_4=WYR&filter_request_4="%(self.BASE_URL, q, auth)
+        if number == 1:
+            return self.BASE_URL+'search?'+urlencode({
+                'search':q
+            })
         else:
-            if number == 1:
-                return "%s/F/?func=find-b&find_code=WRD&x=0&y=0&request=%s&filter_code_1=WTP&filter_request_1=BK&filter_code_2=WLN&adjacent=N"%(self.BASE_URL, q)
-            else:
-                return "%s=%d"%(self.nurl, number * 10 + 1)
+            return self.BASE_URL+'search?'+urlencode({
+                'search':q,
+                'page_w':number
+            })
 
     def get_cached_cover_url(self, identifiers):
         '''
@@ -346,7 +355,6 @@ class Nkp(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
-        self.downloads_count = 1000
         self.log = Log(self.name, log)
         cached_url = self.get_cached_cover_url(identifiers)
         if cached_url is None:
@@ -397,7 +405,7 @@ class Nkp(Source):
         '''
         ident = identifiers.get(self.name, None)
         if ident:
-            return (self.name, ident, "%sF/?func=direct&doc_number=%s&local_base=NKC"%(self.BASE_URL,ident))
+            return (self.name, ident, "%skniha-%s"%(self.BASE_URL,ident))
         else:
             return None
 
@@ -439,41 +447,23 @@ if __name__ == '__main__': # tests
     # and run run.bat
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
-    test_identify_plugin(Nkp.name,
+    test_identify_plugin(Xtr.name,
         [
 #             (
-#                 {'identifiers':{'bookfan1': '83502'}, #basic
-#                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-#                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-#             )
-#            ,
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #edice
-#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-#                 [title_test('Zlodějka knih', exact=False)]
-#             )
-#            ,
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #serie
-#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-#                 [title_test('Hra o trůny', exact=False)]
-#             )
-#            ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-#                 [title_test('Meč osudu', exact=False)]
+#                 {'identifiers':{'test-case':'long search'},
+#                  'title': 'Vlk', 'authors':['E. E Knight']},
+#                 [title_test('Vlk', exact=False)]
 #             )
 #             ,
 #             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Dilvermoon', 'authors':['Raymon Huebert Aldridge']},
-#                 [title_test('Dilvermoon', exact=False)]
+#                 {'identifiers':{'test-case':'redirect search'},
+#                  'title': 'Bestie uvnitř', 'authors':['Soren Hammer','Lotte Hammerová']},
+#                 [title_test('Bestie uvnitř', exact=False)]
 #             )
 #             ,
             (
-                {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
+                {'identifiers':{'test-case':'simple book'},
+                 'title': 'Duna', 'authors':['Frank Herbert']},
+                [title_test('Duna', exact=False)]
             )
         ])
