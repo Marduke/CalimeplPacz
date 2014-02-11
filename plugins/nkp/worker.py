@@ -7,14 +7,13 @@ __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
 from threading import Thread
-from calibre import as_unicode
 from calibre.utils.cleantext import clean_ascii_chars
 from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
 from log import Log #REPLACE from calibre_plugins.nkp.log import Log
-import datetime, re, json
+import datetime, re
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -63,14 +62,17 @@ class Worker(Thread):
         tags = []
         xpath = self.XPath('//table[@id="record"]//tr')
         for row in xpath(xml_detail):
-
             ch = row.getchildren()
             txt = ch[0].text.strip()
             data = self.normalize(ch[1].text)
             if txt.startswith('245') and title is None:
                 title = self.parse_title(data)
+            if txt.startswith('246'):
+                title = self.parse_title(data)
             elif txt.startswith('100') or txt.startswith('700'):
-                authors.append(self.parse_author(data))
+                res = self.parse_author(data)
+                if res is not None:
+                    authors.append(res)
             elif txt == 'SYS':
                 sys_ident = data.strip()
             elif txt =='020':
@@ -98,7 +100,6 @@ class Worker(Thread):
             mi.cover_url = cover
 
             if cover:
-                self.log("store cached img %s for %s"%(cover, sys_ident))
                 self.plugin.cache_identifier_to_cover_url(sys_ident, cover)
 
             return mi
@@ -112,6 +113,8 @@ class Worker(Thread):
         return title
 
     def parse_author(self, data):
+        if data['4'] != 'aut':
+            return None
         parts = data['a'].split(',')
         filtred = []
         for part in parts:
@@ -179,7 +182,7 @@ class Worker(Thread):
     def parse_cover(self, isbn):
         isbn = re.sub("-", "", isbn)
         url = "http://www.obalkyknih.cz/api/cover?isbn=%s&return=js_callback&callback=display_cover&callback_arg="%isbn
-
+#TODO: made cover gen in download func
         br = self.browser
         try:
             self.log('download page detail %s'%url)

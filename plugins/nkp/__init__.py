@@ -128,6 +128,7 @@ class Nkp(Source):
     auto_trim_covers = False
 
     def download_parse(self, query, timeout):
+        self.downloads_count += 1
         br = self.browser
         try:
             self.log('download page search %s'%query)
@@ -140,9 +141,8 @@ class Nkp(Source):
             parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(raw)
 
-            self.log.filelog(clean, "\\tmp\\test.html")
+            self.log.filelog(clean, "\\tmp\\test%i.html"%self.downloads_count)
             feed = fromstring(clean, parser=parser)
-            self.log.filelog(etree.tostring(feed), "\\tmp\\test2.html")
 
 #             if len(parser.error_log) > 0: #some errors while parsing
 #                 self.log('while parsing page occus some errors:')
@@ -172,7 +172,7 @@ class Nkp(Source):
         Returns:
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
-
+        self.downloads_count = 0
         self.log = Log(self.name, log)
 
         found = []
@@ -198,21 +198,23 @@ class Nkp(Source):
         list_test = result_url(feed)
         if len(list_test) > 0:
             url = list_test[0]
-#             url = list_test[0] + "&format=001&set_entry=000001" #force marc format
-#             url = re.sub("func=short-0", "func=full-set-set", url)
             self.log("Find result url: %s"%url)
 
             result = self.download_parse(url, timeout)
             detail = detail_test(result)
-            if len(detail) > 0:
-                self.log('b')
-                xml = result
+            if len(detail) > 0:#single result, redirect
                 detail_ident = detail[0]
-                if ident is not None and detail_ident != ident:
+                if ident is None or detail_ident != ident:
                     found.append(detail_ident)
-        else:
+                    xml = self.download_parse("%sF/?func=direct&doc_number=%s&local_base=NKC&format=001"%(self.BASE_URL, detail_ident), timeout)
+            else: #list of results as normal search
+                feed = result
+        if xml is None:
             try:
                 tmp = result_count(feed)
+                if len(tmp) == 0:
+                    self.log("Results not found. Exiting...")
+                    return None
                 results = int(re.findall("\d+", tmp[0])[-1])
                 #more pages with search results
                 que = Queue()
@@ -223,8 +225,9 @@ class Nkp(Source):
                     page_max += 1
 
                 nurl = next_url(feed)
-                nurl = nurl[0][:nurl[0].rfind('=')]
-                self.nurl = nurl
+                if len(nurl) > 0:
+                    nurl = nurl[0][:nurl[0].rfind('=')]
+                    self.nurl = nurl
 
                 sworkers = []
                 sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
@@ -344,6 +347,7 @@ class Nkp(Source):
         This method should use cached cover URLs for efficiency whenever possible. When cached data is not present, most plugins simply call identify and use its results.
         If the parameter get_best_cover is True and this plugin can get multiple covers, it should only get the “best” one.
         '''
+        self.downloads_count = 1000
         self.log = Log(self.name, log)
         cached_url = self.get_cached_cover_url(identifiers)
         if cached_url is None:
@@ -456,11 +460,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-                [title_test('Meč osudu', exact=False)]
-            )
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+#                 [title_test('Meč osudu', exact=False)]
+#             )
 #             ,
 #             (
 #                 {'identifiers':{}, #short story
@@ -468,9 +472,9 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-#                 [title_test('Vlk', exact=False)]
-#             )
+            (
+                {'identifiers':{}, #short story
+                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+                [title_test('Vlk', exact=False)]
+            )
         ])
