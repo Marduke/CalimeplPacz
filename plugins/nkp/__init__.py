@@ -318,7 +318,6 @@ class Nkp(Source):
             return None
 
         if self.prefs['search_advanced']:
-            self.log(authors)
             auth = authors[0].strip().split(' ')[-1]
             self.log([q, auth])
             q = urlencode({"request":q})

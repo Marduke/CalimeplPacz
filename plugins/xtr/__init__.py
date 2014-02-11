@@ -113,6 +113,10 @@ class Xtr(Source):
                Option('password', 'string', None,
                       'Heslo',
                       'Heslo'),
+
+               Option('search_advanced', 'bool', False,
+                      'Hledat i podle autora',
+                      'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
     )
 
     '''
@@ -142,7 +146,8 @@ class Xtr(Source):
         br = self.browser
         try:
             self.log('download page search %s'%query)
-            raw = br.open(query, timeout=timeout).read().strip()
+            data = urllib.urlencode(query[1])
+            raw = br.open(query[0],data,timeout=timeout).read().strip()
         except Exception as e:
             self.log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
@@ -164,7 +169,7 @@ class Xtr(Source):
             return as_unicode(e)
 
     def connect(self):
-        br = self.browser()
+        br = self.browser
         try:
             url = "%snew/?top=1"%self.BASE_URL
 
@@ -175,7 +180,7 @@ class Xtr(Source):
             }
 
             data = urllib.urlencode(parameters)
-            br.open(url,data)
+            raw = br.open(url,data).read().strip()
         except Exception as e:
             self.log.exception(e)
 
@@ -200,13 +205,10 @@ class Xtr(Source):
         self.downloads_count = 0
         self.log = Log(self.name, log)
         found = []
-        xml = None
 
-        #test previous found first
         ident = identifiers.get(self.name, None)
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        result_count = XPath('//div[@id="works"]/h2[@class="title"]/span[@class="n_found"]/text()')
-        detail_text = XPath('//div[@class="book content"]/@id')
+        last_page = XPath('//table[@class="list_table_navigation"]//td[last()]/a/@href')
 
         self.connect()
         query = self.create_query(title=title, authors=authors)
@@ -214,71 +216,57 @@ class Xtr(Source):
             self.log('Insufficient metadata to construct query')
             return
 
-        br = self.browser
+        feed = self.download_parse(query, timeout)
         try:
-            self.log('download page search %s'%query)
-            raw = br.open(query, timeout=timeout).read().strip()
-        except Exception as e:
-            self.log.exception('Failed to make identify query: %r'%query)
-            return as_unicode(e)
-
-        try:
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(raw)
-            feed = fromstring(clean, parser=parser)
-
-            detail = detail_text(feed)
-            if len(detail) > 0:
-                xml = feed
-                detail_ident = detail[0].split("_")[1]
-                found.append(detail_ident)
+            page = last_page(feed)
+            #more pages with search results
+            que = Queue()
+            if ident is not None:
+                que.put(["-%s"%ident, title, authors])
+            if len(page) > 0:
+                page_max = 1
             else:
-                more_pages = result_count(feed)
-                #more pages with search results
-                que = Queue()
-                if ident is not None:
-                    que.put(["-%s"%ident, title, authors])
-                results = int(re.compile("\d+").findall(more_pages[0])[0])
-                page_max = int(results / 10)
-                if results % 10 > 0:
-                    page_max += 1
+                self.log(page)
+                page_max = int(re.compile("\d+").findall(page[0])[-1])
 
-                sworkers = []
-                sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
-                sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+            self.log(page_max)
 
+            sworkers = []
+            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
+            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+
+            for w in sworkers:
+                w.start()
+                time.sleep(0.1)
+
+            while not abort.is_set():
+                a_worker_is_alive = False
                 for w in sworkers:
-                    w.start()
-                    time.sleep(0.1)
-
-                while not abort.is_set():
-                    a_worker_is_alive = False
-                    for w in sworkers:
-                        w.join(0.2)
-                        if abort.is_set():
-                            break
-                        if w.is_alive():
-                            a_worker_is_alive = True
-                    if not a_worker_is_alive:
+                    w.join(0.2)
+                    if abort.is_set():
                         break
+                    if w.is_alive():
+                        a_worker_is_alive = True
+                if not a_worker_is_alive:
+                    break
 
-                act_authors = []
-                for act in authors:
-                    act_authors.append(act.split(" ")[-1])
+            act_authors = []
+            for act in authors:
+                act_authors.append(act.split(" ")[-1])
 
-                tmp_entries = []
-                while True:
-                    try:
-                        tmp_entries.append(que.get_nowait())
-                    except Empty:
-                        break
+            tmp_entries = []
+            while True:
+                try:
+                    tmp_entries.append(que.get_nowait())
+                except Empty:
+                    break
 
-                if len(tmp_entries) > self.prefs['max_search']:
-                    tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
-                    tmp_entries = tmp_entries[:self.prefs['max_search']]
+            if len(tmp_entries) > self.prefs['max_search']:
+                tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
+                tmp_entries = tmp_entries[:self.prefs['max_search']]
 
-                for val in tmp_entries:
-                    found.append(val[0])
+            for val in tmp_entries:
+                found.append(val[0])
 
             self.log('Found %i matches'%len(found))
 
@@ -291,10 +279,7 @@ class Xtr(Source):
             found.insert(0, ident)
 
         try:
-            if xml is not None:
-                workers = [Worker(detail_ident, result_queue, br, log, 0, self, xml)]
-            else:
-                workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
+            workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
             for w in workers:
                 w.start()
@@ -324,19 +309,51 @@ class Xtr(Source):
         if title:
             q += ' '.join(self.get_title_tokens(title))
 
-        if isinstance(q, unicode):
-            q = q.encode('utf-8')
+#         if isinstance(q, unicode):
+#             q = q.encode('utf-8')
         if not q:
             return None
-        if number == 1:
-            return self.BASE_URL+'search?'+urlencode({
-                'search':q
-            })
+        auth = authors[0].strip().split(' ')[-1]
+        url = "%snew/?mainpage=hld&subpage=pub&search=1"%self.BASE_URL
+        parameters = {
+            "all_txt_neg":"0",
+            "search_form":"1",
+            "nazev_neg":"0",
+            "nazev_orig_neg":"0",
+            "podtitul_neg":"0",
+            "autor_neg":"0",
+            "prekladatel_neg":"0",
+            "ilustrator_neg":"0",
+            "nakladatel_neg":"0",
+            "nakladatel_orig_neg":"0",
+            "isbn_neg":"0",
+            "klicova_slova_neg":"0",
+            "rok_vydani_neg":"0",
+            "rok_vydani_orig_neg":"0",
+            "stran_pub_neg":"0",
+            "stran_ebk_neg":"0",
+            "pocet_slov_neg":"0",
+            "velikost_ebooku_neg":"0",
+            "velikost_archivu_neg":"0",
+            "hodnoceni_pub_neg":"0",
+            "hodnoceni_ebk_neg":"0",
+            "pridano_neg":"0",
+            "upraveno_neg":"0",
+            "zanr_neg":"0",
+            "jazyk_neg":"0",
+            "jazyk_orig_neg":"0",
+            "edice_neg":"0",
+            "serie_neg":"0",
+            "format_neg":"0",
+            "stav_neg":"0"
+        }
+        if self.prefs['search_advanced']:
+            parameters['autor'] = auth
+            parameters['nazev'] = q
         else:
-            return self.BASE_URL+'search?'+urlencode({
-                'search':q,
-                'page_w':number
-            })
+            parameters['all_txt'] = q
+
+        return [url, parameters]
 
     def get_cached_cover_url(self, identifiers):
         '''
