@@ -8,11 +8,7 @@ __docformat__ = 'restructuredtext en'
 
 from threading import Thread
 from calibre import as_unicode
-from calibre.utils.cleantext import clean_ascii_chars
-from lxml.html import fromstring
-from lxml import etree
 from log import Log #REPLACE from calibre_plugins.xtr.log import Log
-import re, urllib
 
 #Single Thread to process one page of search page
 class SearchWorker(Thread):
@@ -48,10 +44,7 @@ class SearchWorker(Thread):
                 auths.append(i.strip().split(",")[0])
             if len(parts) > 0 and len(url) > 0:
                 add = (url[0].split('=')[-1], title, auths)
-                self.log(add)
                 if self.identif is None or title != self.identif:
                     self.queue.put(add)
             else:
                 self.log('Title not found')
-
-

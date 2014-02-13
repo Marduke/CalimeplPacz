@@ -117,6 +117,10 @@ class Xtr(Source):
                Option('search_advanced', 'bool', False,
                       'Hledat i podle autora',
                       'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
+
+               Option("edition", 'bool', True,
+                      "přidávat edici do tagů",
+                      "Pokud bude u knihy nalezena edice bude přidána k tagům"),
     )
 
     '''
@@ -142,8 +146,8 @@ class Xtr(Source):
         return self.prefs['login'] is not None and self.prefs['password'] is not None
 
     def download_parse(self, query, timeout):
-        self.downloads_count += 1
-        number = self.downloads_count
+#         self.downloads_count += 1
+#         number = self.downloads_count
         br = self.browser
         try:
             self.log('download page search %s'%query)
@@ -157,7 +161,7 @@ class Xtr(Source):
             parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(raw)
 
-            self.log.filelog(clean, "\\tmp\\test%i.html"%number)
+#             self.log.filelog(clean, "\\tmp\\test%i.html"%number)
             feed = fromstring(clean, parser=parser)
 
 #             if len(parser.error_log) > 0: #some errors while parsing
@@ -224,7 +228,7 @@ class Xtr(Source):
         Returns:
             None if no errors occurred, otherwise a unicode representation of the error suitable for showing to the user
         '''
-        self.downloads_count = 0
+#         self.downloads_count = 0
         self.log = Log(self.name, log)
         found = []
 
@@ -252,12 +256,9 @@ class Xtr(Source):
             else:
                 page_max = 1
 
-            self.log(page_max)
-
             sworkers = []
             sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title, authors))
-#TODO:
-#             sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title, authors) for i in range(1,page_max)])
+            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title, authors) for i in range(1,page_max)])
 
             self.run_workers(sworkers, abort)
 
@@ -308,8 +309,6 @@ class Xtr(Source):
         if title:
             q += ' '.join(self.get_title_tokens(title))
 
-#         if isinstance(q, unicode):
-#             q = q.encode('utf-8')
         if not q:
             return None
         auth = authors[0].strip().split(' ')[-1]

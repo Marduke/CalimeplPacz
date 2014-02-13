@@ -15,7 +15,7 @@ from lxml import etree
 from lxml.html import fromstring
 from functools import partial
 from log import Log #REPLACE from calibre_plugins.xtr.log import Log
-import datetime, re
+import datetime
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -41,23 +41,14 @@ class Worker(Thread):
     def initXPath(self):
         self.xpath_title = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Název:"]/following::td[1]/text()'
         self.xpath_authors = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Autor:"]/following::td[1]/a/text()'
-        #TODO:
-        self.xpath_authors_coop = '//div[@class="book-contributors"]/text()'
-        #TODO:
-        self.xpath_comments = '//div[@class="trunc-a"]/text()'
-        #TODO:
-        self.xpath_stars = '//meta[@itemprop="ratingValue"]/@content'
-        #TODO:
-        self.xpath_isbn = '//span[@itemprop="isbn"]/text()'
-        self.xpath_publisher = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Nakladatel (rok vydání):"]/following::td[1]'
-        #TODO:
-        self.xpath_pubdate = '//span[@class="publish-year" and @itemprop="datePublished"]/text()'
-        #TODO:
-        self.xpath_tags = '//div[@class="trunc-h"]//a[starts-with(@href, "/kategorie/")]/text()'
-        #TODO:
-        self.xpath_serie = '//h2[@class="book-part-info"]/text()'
-        #TODO:
-        self.xpath_cover = '//div[@class="cover_with_links"]/div/img/@src'
+        self.xpath_comments = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Další informace:"]/following::td[1]/text()'
+        self.xpath_stars = '//input[@id="rating"]/@value'
+        self.xpath_isbn = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "ISBN:"]/following::td[1]/text()'
+        self.xpath_publisher = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Nakladatel (rok vydání):"]/following::td[1]//text()'
+        self.xpath_tags = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Žánry a lit. útvary:"]/following::td[1]/a/text()'
+        self.xpath_edition = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Edice:"]/following::td[1]//text()'
+        self.xpath_serie = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Série:"]/following::td[1]//text()'
+        self.xpath_cover = '//td[@class="detail_td_item_value"]/img/@src'
 
     def run(self):
         self.initXPath()
@@ -135,7 +126,7 @@ class Worker(Thread):
     def parse_comments(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_comments)
         if len(tmp) > 0:
-            result = "".join(tmp).strip()
+            result = "<br/>".join(tmp).strip()
             self.log('Found comment:%s'%result)
             return result
         else:
@@ -164,11 +155,8 @@ class Worker(Thread):
     def parse_publisher(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_publisher)
         if len(tmp) > 0:
-            self.log(tmp[0].text)
-            self.log(etree.tostring(tmp[0]))
-            pub = tmp[0].getchildren()[0].text
-            self.log(pub)
-            pubdt = int(tmp[0].text[1:-1])
+            pub = tmp[0]
+            pubdt = int(tmp[1].strip()[1:-1])
             self.log('Found publisher:%s'%pub)
             self.log('Found pubdate:%s'%pubdt)
             return [pub, datetime.datetime(pubdt, 1, 1, tzinfo=utc_tz)]
@@ -178,23 +166,27 @@ class Worker(Thread):
             return (None, None)
 
     def parse_tags(self, xml_detail):
-        tmp = xml_detail.xpath(self.xpath_tags)
-        if len(tmp) > 0:
-            self.log('Found tags:%s'%tmp)
-            return tmp
+        tags = []
+        tags.extend(xml_detail.xpath(self.xpath_tags))
+        if self.plugin.prefs['edition']:
+            tmp = xml_detail.xpath(self.xpath_edition)
+            if len(tmp) > 1:
+                tags.append(tmp[0])
+#TODO: in all plugins edition prefix
+        if len(tags) > 0:
+            self.log('Found tags:%s'%tags)
+            return tags
         else:
             self.log('Found tags:None')
             return None
 
     def parse_serie(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_serie)
-        if len(tmp) > 0:
-            serie_index, serie = tmp[0].split(',')
-            serie = serie.strip()
-            serie_index = int(re.findall("\d+", serie_index)[0])
+        if len(tmp) > 1:
+            serie = tmp[0]
+            serie_index = int(tmp[1].split('-')[1].strip())
             self.log('Found serie:%s[%d]'%(serie, serie_index))
             return [serie, serie_index]
-
         else:
             self.log('Found serie:None')
             return [None, None]
@@ -202,8 +194,9 @@ class Worker(Thread):
     def parse_cover(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_cover)
         if len(tmp) > 0:
-            self.log('Found covers:%s'%tmp[0])
-            return tmp[0]
+            cover = "%snew/%s"%(self.plugin.BASE_URL,tmp[0])
+            self.log('Found covers:%s'%cover)
+            return cover
         else:
             self.log('Found covers:None')
 
