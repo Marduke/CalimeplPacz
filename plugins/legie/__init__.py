@@ -113,7 +113,7 @@ class Legie(Source):
                       'stahovat tag světa knihy',
                       'stahovat tag označující svět, ve kterém se kniha odehrává'),
 
-               Option('world_tag_prefix', 'string', '_svět:',#TODO: empty it before release
+               Option('world_tag_prefix', 'string', '_svět:',
                       'prefix tagu světa knihy',
                       'prefix tagu označujícího svět, ve kterém se kniha odehrává'),
     )

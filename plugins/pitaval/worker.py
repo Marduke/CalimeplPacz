@@ -15,7 +15,7 @@ from lxml import etree
 from lxml.html import fromstring
 from functools import partial
 from log import Log #REPLACE from calibre_plugins.pitaval.log import Log
-import datetime, re
+import datetime
 
 #Single Thread to process one page of searched list
 class Worker(Thread):

@@ -304,7 +304,7 @@ class Nkp(Source):
             self.log.exception(e)
 
         return None
-#TODO: test mec osudu
+
     def create_query(self, title=None, authors=None, identifiers={}, number=1):
         '''
         create url for HTTP request
@@ -458,11 +458,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-#                 [title_test('Meč osudu', exact=False)]
-#             )
+            (
+                {'identifiers':{}, #short story
+                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+                [title_test('Meč osudu', exact=False)]
+            )
 #             ,
 #             (
 #                 {'identifiers':{}, #short story
@@ -470,9 +470,9 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
-            )
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+#                 [title_test('Vlk', exact=False)]
+#             )
         ])
