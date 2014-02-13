@@ -39,17 +39,24 @@ class Worker(Thread):
         self.log = Log("worker %s"%ident, log)
 
     def initXPath(self):
-        self.xpath_title = '//h1[@class="book-title t"]/text()'
+        self.xpath_title = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Název:"]/following::td[1]/text()'
+        self.xpath_authors = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Autor:"]/following::td[1]/a/text()'
         #TODO:
-        self.xpath_authors = '//h2[@class="book-author t"]/span/a/text()'
         self.xpath_authors_coop = '//div[@class="book-contributors"]/text()'
+        #TODO:
         self.xpath_comments = '//div[@class="trunc-a"]/text()'
+        #TODO:
         self.xpath_stars = '//meta[@itemprop="ratingValue"]/@content'
+        #TODO:
         self.xpath_isbn = '//span[@itemprop="isbn"]/text()'
-        self.xpath_publisher = '//span[@itemprop="publisher"]/text()'
+        self.xpath_publisher = '//table[@class="detail_table"]//td[@class="detail_td_item_name" and text() = "Nakladatel (rok vydání):"]/following::td[1]'
+        #TODO:
         self.xpath_pubdate = '//span[@class="publish-year" and @itemprop="datePublished"]/text()'
+        #TODO:
         self.xpath_tags = '//div[@class="trunc-h"]//a[starts-with(@href, "/kategorie/")]/text()'
+        #TODO:
         self.xpath_serie = '//h2[@class="book-part-info"]/text()'
+        #TODO:
         self.xpath_cover = '//div[@class="cover_with_links"]/div/img/@src'
 
     def run(self):
@@ -75,8 +82,7 @@ class Worker(Thread):
         comments = self.parse_comments(xml_detail)
         rating = self.parse_rating(xml_detail)
         isbn = self.parse_isbn(xml_detail)
-        publisher = self.parse_publisher(xml_detail)
-        pub_year = self.parse_pubdate(xml_detail)
+        publisher, pub_year = self.parse_publisher(xml_detail)
         tags = self.parse_tags(xml_detail)
         serie, serie_index = self.parse_serie(xml_detail)
         cover = self.parse_cover(xml_detail)
@@ -114,15 +120,12 @@ class Worker(Thread):
     def parse_authors(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_authors)
         if len(tmp) > 0:
-            auths = [tmp[0].strip()]
-            coop = xml_detail.xpath(self.xpath_authors_coop)
-            coop = re.sub("Další autoři:", "", coop[0].strip())
-            if coop != "":
-                for name in coop.split(','):
-                    parts = name.split('(')
-                    if parts[1].startswith('autor'):
-                        auths += [parts[0].strip()]
-
+            auths = []
+            for a in tmp:
+                self.log(a)
+                parts = a.split(",")
+                self.log(parts)
+                auths.append("%s %s"%(parts[1].strip(),parts[0]))
             self.log('Found authors:%s'%auths)
             return auths
         else:
@@ -161,18 +164,16 @@ class Worker(Thread):
     def parse_publisher(self, xml_detail):
         tmp = xml_detail.xpath(self.xpath_publisher)
         if len(tmp) > 0:
-            self.log('Found publisher:%s'%tmp[0])
-            return tmp[0]
+            self.log(tmp[0].text)
+            self.log(etree.tostring(tmp[0]))
+            pub = tmp[0].getchildren()[0].text
+            self.log(pub)
+            pubdt = int(tmp[0].text[1:-1])
+            self.log('Found publisher:%s'%pub)
+            self.log('Found pubdate:%s'%pubdt)
+            return [pub, datetime.datetime(pubdt, 1, 1, tzinfo=utc_tz)]
         else:
             self.log('Found publisher:None')
-            return None
-
-    def parse_pubdate(self, xml_detail):
-        tmp = xml_detail.xpath(self.xpath_pubdate)
-        if len(tmp) > 0:
-            self.log('Found pubdate:%s'%tmp[0])
-            return datetime.datetime(int(tmp[0]), 1, 1, tzinfo=utc_tz)
-        else:
             self.log('Found pubdate:None')
             return (None, None)
 
@@ -207,14 +208,15 @@ class Worker(Thread):
             self.log('Found covers:None')
 
     def download_detail(self):
-        query = self.plugin.BASE_URL + self.ident
+        query = "%snew/?mainpage=pub&subpage=detail&id=%s"%(self.plugin.BASE_URL, self.ident)
         br = self.browser
         try:
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
-            parser = etree.XMLParser(recover=True)
+            parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(data)
             xml = fromstring(clean,  parser=parser)
+            self.log.filelog(clean, "\\tmp\\worker-%s.html"%self.ident)
             return xml
         except Exception as e:
             self.log.exception('Failed to make download : %r'%query)

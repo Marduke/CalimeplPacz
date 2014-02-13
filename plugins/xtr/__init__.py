@@ -143,6 +143,7 @@ class Xtr(Source):
 
     def download_parse(self, query, timeout):
         self.downloads_count += 1
+        number = self.downloads_count
         br = self.browser
         try:
             self.log('download page search %s'%query)
@@ -156,7 +157,7 @@ class Xtr(Source):
             parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(raw)
 
-            self.log.filelog(clean, "\\tmp\\test%i.html"%self.downloads_count)
+            self.log.filelog(clean, "\\tmp\\test%i.html"%number)
             feed = fromstring(clean, parser=parser)
 
 #             if len(parser.error_log) > 0: #some errors while parsing
@@ -169,6 +170,8 @@ class Xtr(Source):
             return as_unicode(e)
 
     def connect(self):
+        if not self.is_configured():
+            return False
         br = self.browser
         try:
             url = "%snew/?top=1"%self.BASE_URL
@@ -178,11 +181,30 @@ class Xtr(Source):
                 "login_name":self.prefs['login'],
                 "login_password":self.prefs['password']
             }
-
             data = urllib.urlencode(parameters)
-            raw = br.open(url,data).read().strip()
+            clean = clean_ascii_chars(br.open(url,data).read().strip())
+            parser = etree.HTMLParser(recover=True)
+            feed = fromstring(clean, parser=parser)
+            return len(feed.xpath('//input[@id="login_name"]/@name')) == 0
         except Exception as e:
             self.log.exception(e)
+            return False
+
+    def run_workers(self, workers, abort):
+        for w in workers:
+            w.start()
+            time.sleep(0.1)
+
+        while not abort.is_set():
+            a_worker_is_alive = False
+            for w in workers:
+                w.join(0.2)
+                if abort.is_set():
+                    break
+                if w.is_alive():
+                    a_worker_is_alive = True
+            if not a_worker_is_alive:
+                break
 
     def identify(self, log, result_queue, abort, title=None, authors=None, identifiers={}, timeout=30):
         '''
@@ -210,7 +232,9 @@ class Xtr(Source):
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         last_page = XPath('//table[@class="list_table_navigation"]//td[last()]/a/@href')
 
-        self.connect()
+        if self.connect() != True:
+            self.log('Cant connect to server or bad login')
+            return None
         query = self.create_query(title=title, authors=authors)
         if not query:
             self.log('Insufficient metadata to construct query')
@@ -224,31 +248,18 @@ class Xtr(Source):
             if ident is not None:
                 que.put(["-%s"%ident, title, authors])
             if len(page) > 0:
-                page_max = 1
-            else:
-                self.log(page)
                 page_max = int(re.compile("\d+").findall(page[0])[-1])
+            else:
+                page_max = 1
 
             self.log(page_max)
 
             sworkers = []
-            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title))
-            sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title) for i in range(1,page_max)])
+            sworkers.append(SearchWorker(que, self, timeout, log, 1, ident, feed, title, authors))
+#TODO:
+#             sworkers.extend([SearchWorker(que, self, timeout, log, (i + 1), ident, None, title, authors) for i in range(1,page_max)])
 
-            for w in sworkers:
-                w.start()
-                time.sleep(0.1)
-
-            while not abort.is_set():
-                a_worker_is_alive = False
-                for w in sworkers:
-                    w.join(0.2)
-                    if abort.is_set():
-                        break
-                    if w.is_alive():
-                        a_worker_is_alive = True
-                if not a_worker_is_alive:
-                    break
+            self.run_workers(sworkers, abort)
 
             act_authors = []
             for act in authors:
@@ -279,22 +290,10 @@ class Xtr(Source):
             found.insert(0, ident)
 
         try:
+            br = self.browser
             workers = [Worker(ident, result_queue, br, log, i, self, None) for i, ident in enumerate(found)]
 
-            for w in workers:
-                w.start()
-                time.sleep(0.1)
-
-            while not abort.is_set():
-                a_worker_is_alive = False
-                for w in workers:
-                    w.join(0.2)
-                    if abort.is_set():
-                        break
-                    if w.is_alive():
-                        a_worker_is_alive = True
-                if not a_worker_is_alive:
-                    break
+            self.run_workers(workers, abort)
         except Exception as e:
             self.log.exception(e)
 
@@ -315,6 +314,8 @@ class Xtr(Source):
             return None
         auth = authors[0].strip().split(' ')[-1]
         url = "%snew/?mainpage=hld&subpage=pub&search=1"%self.BASE_URL
+        if number > 1:
+            url += "&hld_pub_page=%i"%number
         parameters = {
             "all_txt_neg":"0",
             "search_form":"1",
