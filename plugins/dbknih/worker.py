@@ -134,11 +134,12 @@ class Worker(Thread):
         if self.plugin.prefs['add_mother_book_list']:
             tmp = self.xpath_books_contains(xml_detail)
             if len(tmp) > 0:
-                result += "<p>Seznam knih ve kterých se povídka vyskytuje:<br/>"
+                result += "<p>Seznam knih ve kterých se povídka vyskytuje:<ul>"
                 for book in tmp:
+                    result += "<li>"
                     result += book
-                    result += "<br/>"
-                result += "</p>"
+                    result += "</li>"
+                result += "</ul></p>"
 
         if self.plugin.prefs['add_short_story_list']:
             tmp = self.xpath_short_stories_url(xml_detail)
@@ -146,11 +147,12 @@ class Worker(Thread):
                 xml_story_list = self.download_short_story_list(tmp[0])
                 tmp2 = self.xpath_short_stories_list(xml_story_list)
 
-                result += "<p>Seznam povídek:<br/>"
+                result += "<p>Seznam povídek:<ul>"
                 for story in tmp2:
+                    result += "<li>"
                     result += story
-                    result += "<br/>"
-                result += "</p>"
+                    result += "</li>"
+                result += "</ul></p>"
 
         if len(result) > 0:
             self.log('Found comment with addings:%s'%result)

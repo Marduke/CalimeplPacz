@@ -25,7 +25,7 @@ from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_pl
 from log import Log #REPLACE from calibre_plugins.legie.log import Log
 
 class Legie(Source):
-#TODO: rework to li html tag generated lists in all plugins
+
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }
