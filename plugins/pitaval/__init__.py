@@ -25,7 +25,6 @@ from pre_filter_compare import PreFilterMetadataCompare #REPLACE from calibre_pl
 from log import Log #REPLACE from calibre_plugins.pitaval.log import Log
 
 class Pitaval(Source):
-#TODO: tag povidka
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }
@@ -409,15 +408,21 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{},
-                'title': 'Vysoké sázky', 'authors':['Dick Francis']},
-                [title_test('Vysoké sázky', exact=False)]
-            )
+#             (
+#                 {'identifiers':{},
+#                 'title': 'Vysoké sázky', 'authors':['Dick Francis']},
+#                 [title_test('Vysoké sázky', exact=False)]
+#             )
 #             ,
 #             (
 #                 {'identifiers':{},
 #                 'title': 'Tajemství ulice', 'authors':['Pitt Strong']},
 #                 [title_test('Tajemství ulice', exact=False)]
 #             )
-        ])
+#             ,
+            (
+                {'identifiers':{},
+                'title': 'Nevadský plyn', 'authors':['Raymond Chandler']},
+                [title_test('Nevadský plyn', exact=False)]
+            )
+])

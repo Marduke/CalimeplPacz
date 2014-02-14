@@ -129,7 +129,7 @@ class Worker(Thread):
 
     def parse_comments(self, xml_detail):
         tmp = self.xpath_comments(xml_detail)
-
+#TODO: povidka v knihach...
         if len(tmp) > 0:
             result = "<br/>".join(tmp).strip()
             self.log('Found comment:%s'%result)
@@ -187,9 +187,17 @@ class Worker(Thread):
         return None
 
     def parse_tags(self, xml_detail):
-        tags = self.xpath_tags(xml_detail)
-        self.log('Found tags:%s'%tags)
-        return tags
+        tags = []
+        tags.extend(self.xpath_tags(xml_detail))
+        if self.ident.startswith('povidka'):
+            tags.append("povidka")
+
+        if len(tags) > 0:
+            self.log('Found tags:%s'%tags)
+            return tags
+        else:
+            self.log('Found tags:None')
+            return None
 
     def parse_serie(self, xml_detail):
         tmp = self.xpath_serie(xml_detail)
