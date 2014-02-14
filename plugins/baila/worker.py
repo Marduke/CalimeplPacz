@@ -40,7 +40,6 @@ class Worker(Thread):
 
     def initXPath(self):
         self.xpath_title = '//h1[@class="book-title t"]/text()'
-        #TODO:
         self.xpath_authors = '//h2[@class="book-author t"]/span/a/text()'
         self.xpath_authors_coop = '//div[@class="book-contributors"]/text()'
         self.xpath_comments = '//div[@class="trunc-a"]/text()'
