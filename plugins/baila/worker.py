@@ -118,7 +118,7 @@ class Worker(Thread):
             coop = xml_detail.xpath(self.xpath_authors_coop)
             coop = re.sub("Další autoři:", "", coop[0].strip())
             if coop != "":
-                for name in coop.split(','):
+                for name in coop.split('),'):
                     parts = name.split('(')
                     if parts[1].startswith('autor'):
                         auths += [parts[0].strip()]
@@ -207,7 +207,7 @@ class Worker(Thread):
             self.log('Found covers:None')
 
     def download_detail(self):
-        query = self.plugin.BASE_URL + self.ident
+        query = "%skniha/%s"%(self.plugin.BASE_URL,self.ident)
         br = self.browser
         try:
             self.log('download page detail %s'%query)

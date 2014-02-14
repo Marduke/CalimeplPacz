@@ -67,9 +67,11 @@ class SearchWorker(Thread):
 
             if len(title) > 0:
                 url = title[0].get("href")
-                index = url.rfind('/')
-                url = url[:index]
+                rindex = url.rfind('/')
+                lindex = url.find('/', 1)
+                url = url[lindex + 1:rindex]
                 add = (url, title[0].text, auths)
+                self.log(add)
                 if self.identif is None or title != self.identif:
                     self.queue.put(add)
             else:
