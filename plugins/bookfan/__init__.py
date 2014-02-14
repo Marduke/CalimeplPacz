@@ -7,6 +7,8 @@ __license__   = 'GPL v3'
 __copyright__ = '2012, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
+#REQUIRE metadata_compare, pre_filter_compare, log
+
 import time, re, HTMLParser
 from urllib import quote, unquote
 from Queue import Queue, Empty

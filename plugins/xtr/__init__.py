@@ -7,6 +7,8 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
+#REQUIRE metadata_compare, pre_filter_compare, log
+
 import re, time, sys, urllib
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
@@ -25,6 +27,7 @@ from log import Log #REPLACE from calibre_plugins.xtr.log import Log
 
 class Xtr(Source):
 
+#TODO: build and zip all plugins
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }

@@ -185,7 +185,7 @@ class Worker(Thread):
 #TODO: made cover gen in download func
         br = self.browser
         try:
-            self.log('download page detail %s'%url)
+            self.log('download cover metadata page %s'%url)
             data = br.open(url, timeout=self.timeout).read().strip()
         except Exception as e:
             self.log.exception('Failed to make download : %r'%url)

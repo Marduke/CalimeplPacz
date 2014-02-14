@@ -7,6 +7,8 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
+#REQUIRE metadata_compare, pre_filter_compare, log
+
 import re, time, sys
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
@@ -106,7 +108,7 @@ class Palmknihy(Source):
                       'Maximum knih',
                       'Maximum knih které se budou zkoumat jestli vyhovují hledaným parametrům'),
 
-               Option('search_advanced', 'bool', False,
+               Option('search_advanced', 'bool', True,
                       'Hledat podle autora',
                       'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
     )
@@ -177,9 +179,8 @@ class Palmknihy(Source):
             more_pages = pages_count(feed)
             #more pages with search results
             que = Queue()
-#TODO:
-#                 if ident is not None:
-#                     que.put(["-%s"%ident, title, authors])
+            if ident is not None:
+                que.put(["-%s"%ident, title, authors])
             if len(more_pages) > 0:
                 page_max = int(re.search("\d+", more_pages[0]).group()[-1])
             else:
@@ -270,7 +271,6 @@ class Palmknihy(Source):
 
         number -= 1
         if self.prefs['search_advanced'] and authors is not None:
-            #TODO: url encode
             auth = authors[0].split(' ')[-1]
             return self.BASE_URL+'web/c?'+urlencode({
                 'title':q,
@@ -396,11 +396,11 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Palmknihy.name,
         [
-            (
-                {'identifiers':{'test-case':'long search'},
-                 'title': 'Kříž', 'authors':['Ken Bruen']},
-                [title_test('Kříž', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'test-case':'long search'},
+#                  'title': 'Kříž', 'authors':['Ken Bruen']},
+#                 [title_test('Kříž', exact=False)]
+#             )
 #             ,
 #             (
 #                 {'identifiers':{'test-case':'redirect search'},
@@ -413,4 +413,10 @@ if __name__ == '__main__': # tests
 #                  'title': 'Duna', 'authors':['Frank Herbert']},
 #                 [title_test('Duna', exact=False)]
 #             )
+#             ,
+            (
+                {'identifiers':{'palmknihy':'mluvci-za-mrtve-9705'},
+                 'title': 'Pár kapek krve', 'authors':['Vladimír Šlechta']},
+                [title_test('Pár kapek krve', exact=False)]
+            )
         ])

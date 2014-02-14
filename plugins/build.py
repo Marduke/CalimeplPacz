@@ -8,11 +8,17 @@ import sys, os, re, shutil
 
 def copyfile(src_file, out_file):
     src = out = None
+    print('Copy file %s to %s'%(src_file, out_file))
+    require = []
     try:
         src = open(src_file, "r")
         out = open(out_file, "w")
 
         for line in src.readlines():
+            if line.startswith("#REQUIRE"):
+                files = re.sub("\n","", line[9:]).split(",")
+                for f in files:
+                    require.append(f.strip())
             out.write(re.sub(".*#REPLACE ", "", line))
     except Exception as e:
         print e
@@ -21,12 +27,13 @@ def copyfile(src_file, out_file):
             src.close()
         if out is not None:
             out.close()
+    return require
 
 if __name__ == '__main__':
     name = None
     directory = None
     temp_directory = "..\\tmp"
-    auto_copy = ["metadata_compare", "pre_filter_compare","log"]
+#     auto_copy = ["metadata_compare", "pre_filter_compare","log"]
 
     if len(sys.argv) == 2:
         directory = name = sys.argv[1]
@@ -41,12 +48,21 @@ if __name__ == '__main__':
     os.makedirs(temp_directory)
 
     #empty file with plugin name
-    open("%s\\plugin-import-name-%s.txt"%(temp_directory,name), "w").close()
+    desc_file = "%s\\plugin-import-name-%s.txt"%(temp_directory,name)
+    open(desc_file, "w").close()
+    print('Created name description file %s'%desc_file)
 
-    for tmp in auto_copy:
-        copyfile("%s.py"%tmp, "%s\\%s.py"%(temp_directory, tmp))
+    require = []
 
+    print('Coping plugin class files:')
     for f in os.listdir(directory):
         #only python files
         if re.match(".*\.py$", f) != None:
-            copyfile("%s\\%s"%(directory, f), "%s\\%s"%(temp_directory, f))
+            require.extend(copyfile("%s\\%s"%(directory, f), "%s\\%s"%(temp_directory, f)))
+
+    print('Found require %s'%require)
+    print('Coping plugin require class files:')
+    for tmp in require:
+        if tmp.strip() == '':
+            continue
+        copyfile("%s.py"%tmp, "%s\\%s.py"%(temp_directory, tmp))

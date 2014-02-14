@@ -8,6 +8,8 @@ __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
 __docformat__ = 'restructuredtext en'
 
+#REQUIRE metadata_compare, pre_filter_compare, log
+
 import re, time
 from calibre.ebooks.metadata.sources.base import Source, Option
 from calibre.ebooks.chardet import xml_to_unicode
