@@ -209,8 +209,9 @@ class Worker(Thread):
                 self.log('Found world:%s'%tmp[0])
                 tags += [self.plugin.prefs['world_tag_prefix']+tmp[0]]
 
-        if self.ident.startswith('povidka'):
-            tags.append('povidka')
+        if self.plugin.prefs['short_story']:
+            if self.ident.startswith('povidka'):
+                tags.append('povidka')
 
         self.log('Found tags:%s'%tags)
         return tags

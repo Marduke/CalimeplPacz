@@ -119,6 +119,10 @@ class Legie(Source):
                       'prefix tagu světa knihy',
                       'prefix tagu označujícího svět, ve kterém se kniha odehrává'),
 
+               Option("short_story", 'bool', True,
+                      "přidávat povídku do tagů",
+                      "Pokud bude zjištěno že se jedná o povídku, bude tag Povídka přidán k tagům"),
+
                Option("add_mother_book_list", 'bool', True,
                       "přidávat seznam sbírek povídek",
                       "u povídek přidávat na konec popisu seznam sbírek povídek, ve kterých vyšla"),
