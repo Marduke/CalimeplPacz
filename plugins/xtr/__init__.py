@@ -26,7 +26,6 @@ from xtr.search_worker import SearchWorker #REPLACE from calibre_plugins.xtr.sea
 from log import Log #REPLACE from calibre_plugins.xtr.log import Log
 
 class Xtr(Source):
-
 #TODO: build and zip all plugins
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
@@ -117,13 +116,23 @@ class Xtr(Source):
                       'Heslo',
                       'Heslo'),
 
-               Option('search_advanced', 'bool', False,
+               Option('search_advanced', 'bool', True,
                       'Hledat i podle autora',
                       'Pokud tuto možnost zapnete bude se vyhledávat podle jména knihy a příjmení autora, jinak pouze podle jména knihy. Je to sice rychlejší, ale pokud máte špatně jméno autora pak se kniha nenajde'),
 
                Option("edition", 'bool', True,
                       "přidávat edici do tagů",
                       "Pokud bude u knihy nalezena edice bude přidána k tagům"),
+
+               Option("edition_prefix", 'string', '_edice:',
+                      "předpona pro tag edice",
+                      "Pokud bude u knihy/povídky nalezena edice bude přidána k tagům s touto předponou"),
+
+               Option("edition_to_comments", 'choices', 'Na začatek',
+                      "přidávat edici do popisu",
+                      "Pokud bude u knihy nalezena edice bude přidána do popisu včetně pořadí v edici. Možno zvolit na začatek nebo na konec popisu knihy",
+                      ['Nepřidávat', 'Na začatek', 'Na konec']
+                      )
     )
 
     '''
@@ -481,9 +490,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Bestie uvnitř', exact=False)]
 #             )
 #             ,
+#             (
+#                 {'identifiers':{'test-case':'simple book'},
+#                  'title': 'Duna', 'authors':['Frank Herbert']},
+#                 [title_test('Duna', exact=False)]
+#             )
+#             ,
             (
                 {'identifiers':{'test-case':'simple book'},
-                 'title': 'Duna', 'authors':['Frank Herbert']},
-                [title_test('Duna', exact=False)]
+                 'title': 'Začouzená cela', 'authors':['Edgar Wallace']},
+                [title_test('Začouzená cela', exact=False)]
             )
         ])

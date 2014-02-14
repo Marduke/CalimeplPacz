@@ -140,18 +140,19 @@ class Worker(Thread):
         if len(tmp) > 0:
             result += "<br/>".join(tmp).strip()
 
-        tmp = self.xpath_contain_story(xml_detail)
-        if len(tmp) > 0:
-            result += "<p>Povídka je obsažena v knihách:<ul>"
-            for txt in tmp:
-                if txt.tag == "{http://www.w3.org/1999/xhtml}a":
-                    result +="<li>"
-                    result += txt.text
-                    result +="</li>"
-                else:
-                    result += "pod jmnénem "
-                    result += txt.text
-            result += "</ul></p>"
+        if self.plugin.prefs['add_mother_book_list']:
+            tmp = self.xpath_contain_story(xml_detail)
+            if len(tmp) > 0:
+                result += "<p>Povídka je obsažena v knihách:<ul>"
+                for txt in tmp:
+                    if txt.tag == "{http://www.w3.org/1999/xhtml}a":
+                        result +="<li>"
+                        result += txt.text
+                        result +="</li>"
+                    else:
+                        result += "pod jmnénem "
+                        result += txt.text
+                result += "</ul></p>"
 
         self.log('Found comment:%s'%result)
         return result

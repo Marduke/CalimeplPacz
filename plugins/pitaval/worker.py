@@ -140,18 +140,19 @@ class Worker(Thread):
         if len(tmp) > 0:
             result += "<br/>".join(tmp).strip()
 
-        tmp = self.xpath_contain_story(xml_detail)
-        if len(tmp) > 0:
-            result += "<p>Povídka je obsažena v knihách:<ul>"
-            for txt in tmp:
-                if txt.tag == "{http://www.w3.org/1999/xhtml}a":
-                    result +="<li>"
-                    result += txt.text
-                    result +="</li>"
-                else:
-                    result += "pod jmnénem "
-                    result += txt.text
-            result += "</ul></p>"
+        if self.plugin.prefs['add_mother_book_list']:
+            tmp = self.xpath_contain_story(xml_detail)
+            if len(tmp) > 0:
+                result += "<p>Povídka je obsažena v knihách:<ul>"
+                for txt in tmp:
+                    if txt.tag == "{http://www.w3.org/1999/xhtml}a":
+                        result +="<li>"
+                        result += txt.text
+                        result +="</li>"
+                    else:
+                        result += "pod jmnénem "
+                        result += txt.text
+                result += "</ul></p>"
 
         self.log('Found comment:%s'%result)
         return result
@@ -201,16 +202,18 @@ class Worker(Thread):
 
     def parse_tags(self, xml_detail):
         tags = []
-        tags.extend(self.xpath_tags(xml_detail))
-        if self.ident.startswith('povidka'):
-            tags.append("povidka")
+        tags += self.xpath_tags(xml_detail)
+        if self.plugin.prefs['world_tag']:
+            tmp = self.xpath_world(xml_detail)
+            if len(tmp) > 0:
+                self.log('Found world:%s'%tmp[0])
+                tags += [self.plugin.prefs['world_tag_prefix']+tmp[0]]
 
-        if len(tags) > 0:
-            self.log('Found tags:%s'%tags)
-            return tags
-        else:
-            self.log('Found tags:None')
-            return None
+        if self.ident.startswith('povidka'):
+            tags.append('povidka')
+
+        self.log('Found tags:%s'%tags)
+        return tags
 
     def parse_serie(self, xml_detail):
         tmp = self.xpath_serie(xml_detail)

@@ -109,6 +109,18 @@ class Pitaval(Source):
                Option('max_covers', 'number', 5,
                       'Maximum obálek',
                       'Maximum obálek, které se mají stáhnout'),
+
+               Option('world_tag', 'bool', True,
+                      'stahovat tag světa knihy',
+                      'stahovat tag označující svět, ve kterém se kniha odehrává'),
+
+               Option('world_tag_prefix', 'string', '_svět:',
+                      'prefix tagu světa knihy',
+                      'prefix tagu označujícího svět, ve kterém se kniha odehrává'),
+
+               Option("add_mother_book_list", 'bool', True,
+                      "přidávat seznam sbírek povídek",
+                      "u povídek přidávat na konec popisu seznam sbírek povídek, ve kterých vyšla"),
     )
 
     '''

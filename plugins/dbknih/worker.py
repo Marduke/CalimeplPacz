@@ -213,7 +213,7 @@ class Worker(Thread):
         if self.plugin.prefs['edition']:
             tmp = self.xpath_edition(xml_more_info)
             if len(tmp) > 0:
-                result.append(tmp[0])
+                result.append(self.plugin.prefs['edition_prefix']+tmp[0])
 
         self.log('Found tags:%s'%result)
         return result

@@ -110,6 +110,10 @@ class Dbknih(Source):
                       "přidávat edici do tagů",
                       "Pokud bude u knihy/povídky nalezena edice bude přidána k tagům"),
 
+               Option("edition_prefix", 'string', '_edice:',
+                      "předpona pro tag edice",
+                      "Pokud bude u knihy/povídky nalezena edice bude přidána k tagům s touto předponou"),
+
                Option("short_story", 'bool', True,
                       "přidávat povídku do tagů",
                       "Pokud bude zjištěno že se jedná o povídku, bude tag Povídka přidán k tagům"),

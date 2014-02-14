@@ -15,7 +15,7 @@ from lxml import etree
 from lxml.html import fromstring
 from functools import partial
 from log import Log #REPLACE from calibre_plugins.xtr.log import Log
-import datetime
+import datetime, re
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -127,6 +127,17 @@ class Worker(Thread):
         tmp = xml_detail.xpath(self.xpath_comments)
         if len(tmp) > 0:
             result = "<br/>".join(tmp).strip()
+
+            if self.plugin.prefs['edition_to_comments'] != 'Nepřidávat':
+                tmp = xml_detail.xpath(self.xpath_edition)
+                if len(tmp) > 0:
+                    num_tmp = int(re.search("\d+", tmp[1]).group())
+                    add = "Edice: %s %d. díl"%(tmp[0], num_tmp)
+                    if self.plugin.prefs['edition_to_comments'] != 'Na konec':
+                        result = result + "<br/>" + add
+                    elif self.plugin.prefs['edition_to_comments'] != 'Na začatek':
+                        result = add + "<br/>" + result
+
             self.log('Found comment:%s'%result)
             return result
         else:
@@ -171,8 +182,8 @@ class Worker(Thread):
         if self.plugin.prefs['edition']:
             tmp = xml_detail.xpath(self.xpath_edition)
             if len(tmp) > 1:
-                tags.append(tmp[0])
-#TODO: in all plugins edition prefix
+                tags.append(self.plugin.prefs['edition_prefix'] + tmp[0])
+
         if len(tags) > 0:
             self.log('Found tags:%s'%tags)
             return tags
