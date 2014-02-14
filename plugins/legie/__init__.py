@@ -412,10 +412,16 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski']},
+#                 [title_test('Meč osudu', exact=False)]
+#             )
+#             ,
             (
                 {'identifiers':{}, #short story
-                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-                [title_test('Meč osudu', exact=False)]
+                'title': 'Růže pro Algernon', 'authors':['Daniel Keyes']},
+                [title_test('Růže pro Algernon', exact=False)]
             )
 #             ,
 #             (
