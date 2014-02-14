@@ -400,11 +400,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
 #             )
 #            ,
-            (
-                {'identifiers':{'bookfan1': '83502'}, #edice
-                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-                [title_test('Zlodějka knih', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #edice
+#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                 [title_test('Zlodějka knih', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #serie
@@ -412,11 +412,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Hra o trůny', exact=False)]
 #             )
 #            ,
-#             (
-#                 {'identifiers':{}, #short story
-#                 'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
-#                 [title_test('Meč osudu', exact=False)]
-#             )
+            (
+                {'identifiers':{}, #short story
+                'title': 'Meč osudu', 'authors':['Andrzej Sapkowski ']},
+                [title_test('Meč osudu', exact=False)]
+            )
 #             ,
 #             (
 #                 {'identifiers':{}, #short story

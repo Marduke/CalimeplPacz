@@ -44,7 +44,7 @@ class Worker(Thread):
         self.xpath_authors = self.XPath('//x:a[starts-with(@href,"autor/")]/text()')
         self.xpath_comments_serie = self.XPath('//x:div[@id="anotace"]/x:p//text()')
         self.xpath_comments = self.XPath('//x:div[@id="detail"]/x:div[@id="nic"]/x:p//text()')
-        self.xpath_stars = self.XPath('//x:div[@id="procenta"]/text()')
+        self.xpath_stars = self.XPath('//x:div[@id="procenta"]/x:span[1]/text()')
         self.xpath_isbn = self.XPath('//x:div[@class="vydani cl"]//x:span[starts-with(@title, "ISBN")]/following::text()')
         self.xpath_publisher = self.XPath('//x:div[@class="data_vydani"]//x:a[starts-with(@href, "vydavatel/")]/text()')
         self.xpath_pub_date = self.XPath('//x:div[@class="data_vydani"]/x:table/x:tbody/x:tr/x:td[starts-with(text(), "přibl")]/text()')
@@ -146,7 +146,7 @@ class Worker(Thread):
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
-            stars_ = int(tmp[0].replace('%',''))
+            stars_ = int(tmp[0])
             rating = int(stars_ / 20)
             if stars_ % 20 > 0:
                 rating += 1
@@ -185,6 +185,7 @@ class Worker(Thread):
 
         self.log('Found pub_date:None')
         return None
+#TODO: povidka v knihach...
 
     def parse_tags(self, xml_detail):
         tags = []
