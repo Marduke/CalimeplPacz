@@ -130,11 +130,10 @@ class Worker(Thread):
             self.log('Found comment:None')
             return None
 
-#TODO: REWORK RATING!!! all rating as float !! look exact working!!!!
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
-            rating = tmp[0]
+            rating = float(tmp[0])
             self.log('Found rating:%s'%rating)
             return rating
         else:

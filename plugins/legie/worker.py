@@ -158,6 +158,7 @@ class Worker(Thread):
         return result
 
     def parse_rating(self, xml_detail):
+#TODO: Check RATING
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
             stars_ = int(tmp[0])

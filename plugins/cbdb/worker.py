@@ -135,12 +135,11 @@ class Worker(Thread):
             return None
 
     def parse_rating(self, xml_detail):
+#TODO: Check RATING
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
             stars_ = int(tmp[0].replace(' %',''))
-            rating = int(stars_ / 20)
-            if stars_ % 20 > 0:
-                rating += 1
+            rating = float(stars_ / 20)
             self.log('Found rating:%s'%rating)
             return rating
         else:
@@ -162,8 +161,13 @@ class Worker(Thread):
             data = tmp[-2].strip().split(' - ')
             if len(data) == 2:
                 self.log('Found publisher:%s'%data[0])
-                self.log('Found pub date:%s'%data[1])
-                data[1] = self.prepare_date(int(data[1]))
+                dt = int(data[1])
+                if dt > 0:
+                    self.log('Found pub date:%s'%data[1])
+                    data[1] = self.prepare_date(dt)
+                else:
+                    data[1] = None
+                    self.log('Found pub date:None')
                 return data
 
         self.log('Found publisher:None')

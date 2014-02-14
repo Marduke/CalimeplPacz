@@ -132,6 +132,7 @@ class Worker(Thread):
             return None
 
     def parse_rating(self, xml_detail):
+#TODO: Check RATING
         tmp = xml_detail.xpath(self.xpath_stars)
         if len(tmp) > 0:
             rating = float(re.search("\d", tmp[0]).group())
