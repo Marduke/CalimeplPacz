@@ -14,6 +14,7 @@ from calibre.ebooks.metadata.book.base import Metadata
 from lxml import etree
 from lxml.html import fromstring
 from functools import partial
+from UserString import MutableString
 from log import Log #REPLACE from calibre_plugins.pitaval.log import Log
 import datetime
 
@@ -53,6 +54,7 @@ class Worker(Thread):
         self.xpath_serie_index = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/following-sibling::text()[1]')
         self.xpath_cover = self.XPath('//x:div[@id="vycet_vydani"]//x:img[@class="obalk"]/@src')
         self.xpath_world = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "svet/")]/text()')
+        self.xpath_contain_story = self.XPath('//x:div[@id="zarazena_do_knih"]/child::*[text()]')
 
     def run(self):
         self.initXPath()
@@ -128,20 +130,31 @@ class Worker(Thread):
             return None
 
     def parse_comments(self, xml_detail):
+        result = MutableString()
+
         tmp = self.xpath_comments(xml_detail)
-#TODO: povidka v knihach...
         if len(tmp) > 0:
-            result = "<br/>".join(tmp).strip()
-            self.log('Found comment:%s'%result)
-            return result
-        else:
-            tmp = self.xpath_comments_serie(xml_detail)
-            if len(tmp) > 0:
-                result = "<br/>".join(tmp).strip()
-                self.log('Found comment:%s'%result)
-                return result
-            self.log('Found comment:None')
-            return None
+            result += "<br/>".join(tmp).strip()
+
+        tmp = self.xpath_comments_serie(xml_detail)
+        if len(tmp) > 0:
+            result += "<br/>".join(tmp).strip()
+
+        tmp = self.xpath_contain_story(xml_detail)
+        if len(tmp) > 0:
+            result += "<p>Povídka je obsažena v knihách:<ul>"
+            for txt in tmp:
+                if txt.tag == "{http://www.w3.org/1999/xhtml}a":
+                    result +="<li>"
+                    result += txt.text
+                    result +="</li>"
+                else:
+                    result += "pod jmnénem "
+                    result += txt.text
+            result += "</ul></p>"
+
+        self.log('Found comment:%s'%result)
+        return result
 
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
