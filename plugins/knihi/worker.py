@@ -161,7 +161,6 @@ class Worker(Thread):
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
             parser = etree.HTMLParser(recover = True)
-#TODO: all parsers should use parser = etree.HTMLParser(recover = True)
             clean = clean_ascii_chars(data)
 #             self.log.filelog(clean, "\\tmp\\worker%s.html"%self.ident)
             xml = fromstring(clean,  parser=parser)

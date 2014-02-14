@@ -182,7 +182,6 @@ class Worker(Thread):
     def parse_cover(self, isbn):
         isbn = re.sub("-", "", isbn)
         url = "http://www.obalkyknih.cz/api/cover?isbn=%s&return=js_callback&callback=display_cover&callback_arg="%isbn
-#TODO: made cover gen in download func
         br = self.browser
         try:
             self.log('download cover metadata page %s'%url)
