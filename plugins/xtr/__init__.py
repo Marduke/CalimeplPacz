@@ -26,7 +26,7 @@ from xtr.search_worker import SearchWorker #REPLACE from calibre_plugins.xtr.sea
 from log import Log #REPLACE from calibre_plugins.xtr.log import Log
 
 class Xtr(Source):
-#TODO: build and zip all plugins
+
     NAMESPACES={
         'x':"http://www.w3.org/1999/xhtml"
     }

@@ -218,7 +218,6 @@ class Knihi(Source):
 
             for val in tmp_entries:
                 found.append(val[0])
-#TODO: all plugins - log found and fitlered into 2 log messages
 #TODO: all plugins - if ident specified, search should use it as first result
             self.log('Filtred to %i matches'%len(found))
 
