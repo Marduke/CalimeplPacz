@@ -174,7 +174,7 @@ class Knihi(Source):
             #more pages with search results
             que = Queue()
             if ident is not None:
-                que.put(["-%s"%ident, title, authors])
+                que.put([ident, title, authors])
             if len(more_pages) > 0:
                 page_max = int(more_pages[0])
             else:
@@ -218,7 +218,7 @@ class Knihi(Source):
 
             for val in tmp_entries:
                 found.append(val[0])
-#TODO: all plugins - if ident specified, search should use it as first result
+
             self.log('Filtred to %i matches'%len(found))
 
         except Exception as e:

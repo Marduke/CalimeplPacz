@@ -181,7 +181,7 @@ class Baila(Source):
                 #more pages with search results
                 que = Queue()
                 if ident is not None:
-                    que.put(["-%s"%ident, title, authors])
+                    que.put([ident, title, authors])
                 results = int(re.compile("\d+").findall(more_pages[0])[0])
                 page_max = int(results / 10)
                 if results % 10 > 0:

@@ -145,13 +145,12 @@ class OnlineKnihovna(Source):
 
         self.log = Log(self.name, log)
         found = []
-        xml = None
 
         #test previous found first
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
+        search_list = XPath('//a[starts-with(@href, "/book/search/textSearch/")]')
 
         query = self.create_query(title=title)
         if not query:
@@ -171,11 +170,11 @@ class OnlineKnihovna(Source):
             clean = clean_ascii_chars(raw)
             feed = fromstring(clean, parser=parser)
 
-            more_pages = list(feed)
+            more_pages = search_list(feed)
             #more pages with search results
             que = Queue()
             if ident is not None:
-                que += ["-%i"%ident, title, authors]
+                que += [ident, title, authors]
 
             if len(more_pages) > 5:
                 page_max = int(more_pages[-1].text)

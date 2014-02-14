@@ -234,7 +234,7 @@ class Legie(Source):
                     tmp_entries.append(add)
 
                 if not ident_found and ident is not None:
-                    tmp_entries.append(["-%i"%ident, title, authors],)
+                    tmp_entries.append([ident, title, authors],)
 
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))

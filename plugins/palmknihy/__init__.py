@@ -180,7 +180,7 @@ class Palmknihy(Source):
             #more pages with search results
             que = Queue()
             if ident is not None:
-                que.put(["-%s"%ident, title, authors])
+                que.put([ident, title, authors])
             if len(more_pages) > 0:
                 page_max = int(re.search("\d+", more_pages[0]).group()[-1])
             else:

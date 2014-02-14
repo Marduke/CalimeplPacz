@@ -262,7 +262,7 @@ class Xtr(Source):
             #more pages with search results
             que = Queue()
             if ident is not None:
-                que.put(["-%s"%ident, title, authors])
+                que.put([ident, title, authors])
             if len(page) > 0:
                 page_max = int(re.compile("\d+").findall(page[0])[-1])
             else:

@@ -220,7 +220,7 @@ class Nkp(Source):
                 #more pages with search results
                 que = Queue()
                 if ident is not None:
-                    que.put(["-%s"%ident, title, authors])
+                    que.put([ident, title, authors])
                 page_max = int(results / 10)
                 if results % 10 > 0:
                     page_max += 1
