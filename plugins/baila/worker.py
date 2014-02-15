@@ -139,12 +139,11 @@ class Worker(Thread):
             return None
 
     def parse_rating(self, xml_detail):
-#TODO: Check RATING
         tmp = xml_detail.xpath(self.xpath_stars)
         if len(tmp) > 0:
             rating = float(tmp[0])
             self.log('Found rating:%s'%rating)
-            return rating+1
+            return rating
         else:
             self.log('Found rating:None')
             return None
