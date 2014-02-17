@@ -356,7 +356,7 @@ class Pitaval(Source):
         '''
         ident = identifiers.get(self.name, None)
         if ident:
-            return (self.name, ident, "%skniha-%s"%(self.BASE_URL,ident))
+            return (self.name, ident, "%s%s"%(self.BASE_URL,ident))
         else:
             return None
 

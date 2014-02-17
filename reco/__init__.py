@@ -43,6 +43,7 @@ if __name__ == '__main__':
     }
     files = [".txt"]
 
+#     directory = u"e:\\private\\tr\\mdone\\Knihy Sbírka (Fantasy Sci-Fi)\\Knihy\\I\\IRVING David\\"
     directory = u"e:\\private\\tr\\mdone\\Knihy Sbírka (Fantasy Sci-Fi)\\Knihy\\I\\IRVING David\\"
     for f in os.listdir(directory):
         if not f[-4:] in files:
