@@ -14,11 +14,11 @@ def check(title, authors):
     '''
     pass
 
-def make_combo(tokens):
-    pass
-
-def check_combo(arr):
-    pass
+def check_combo(tokens):
+    combo = []
+    print(tokens)
+    for i in range(len(tokens)):
+        print i
 #     my db
 #     cal db
 #     nkp
@@ -34,7 +34,8 @@ if __name__ == '__main__':
         (id INT PRIMARY KEY     NOT NULL,
         name    TEXT     NOT NULL);''')
 
-    conn_cal = sqlite3.connect('\\data\\knihovna\\Calibre Library\\metadata.db')
+#     conn_cal = sqlite3.connect('\\data\\knihovna\\Calibre Library\\metadata.db')
+    conn_cal = sqlite3.connect('\\knihovna\\Calibre Library\\metadata.db')
 
 #     cursor = conn.execute("SELECT * FROM sqlite_master WHERE type='table'")
 #     for row in cursor:
@@ -45,15 +46,16 @@ if __name__ == '__main__':
 #         print([row[1], row[6]])
 #
 #     conn.close()
-    files = [".txt", ".docx", ".doc", ".rtf", ".epub", ".pdb", ".djvu", ".mobi"]
+    files = [".txt", ".docx", ".doc", ".rtf", ".epub", ".pdb", ".djvu", ".mobi", ".pdf"]
 
     dirs = []
 #     dirs.append("E:\\data\\knihy na prenos\\ebook\\")
-    dirs.append("e:\\data\\knihy na prenos\\ebook\\E-Knihy.mobi\\Asimov, Isaac\\")
-
+#     dirs.append("e:\\data\\knihy na prenos\\ebook\\E-Knihy.mobi\\Asimov, Isaac\\")
+#     dirs.append("\\books\\unsort\\")
+    dirs.append("\\books\\unsort\\Khoury\\")
     try:
         directory = dirs.pop()
-        for f in os.listdir(directory):
+        for f in os.listdir(directory)[:1]:
             act = directory + f
             print(f)
             if os.path.isdir(act):
@@ -61,12 +63,11 @@ if __name__ == '__main__':
             else:
                 pos = f.rfind(".")
                 if not f[pos:] in files:
-                    print("pripona ee")
+                    print("pripona ee " + f[pos:])
                     continue
                 name = f[:pos]
                 tokens = re.findall(r"[\w',]+", name)
-                combo = make_combo(tokens)
-                result = check_combo(combo)
+                result = check_combo(tokens)
     except Exception as e:
         print(e)
 
