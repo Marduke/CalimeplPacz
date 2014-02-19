@@ -13,16 +13,16 @@ from collections import OrderedDict
 
 from calibre import as_unicode
 from calibre.ebooks.metadata.sources.base import Source, Option
-from log import Log #REPLACE from calibre_plugins.obalkyknih.log import Log
+from log import Log #REPLACE from calibre_plugins.obalky.log import Log
 import re
 
-class ObalkyKnih(Source):
+class Obalky(Source):
 
-    name = 'Obalkyknih'
+    name = 'Obalky'
     version = (1, 0, 0)
     author = u'MarDuke marduke@centrum.cz'
 
-    description = _('Downloads cover from obalkyknih.cz')
+    description = _('Downloads cover from some czech pages')
     capabilities = frozenset(['cover'])
     can_get_multiple_covers = True
 
@@ -75,7 +75,7 @@ def test():
     from Queue import Queue
     from threading import Event
     from calibre.utils.logging import default_log
-    p = ObalkyKnih(None)
+    p = Obalky(None)
     rq = Queue()
 #     p.download_cover(default_log, rq, Event(), title='The Heroes', authors=('Joe Abercrombie',), identifiers={'isbn':'8086481107'})
     p.download_cover(default_log, rq, Event(), title='The Heroes', authors=('Joe Abercrombie',), identifiers={'isbn':'978-80-7384-656-5 '})
