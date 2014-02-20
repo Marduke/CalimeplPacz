@@ -36,8 +36,6 @@ Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z
 - [x] pitaval.cz - v1.0.0
 - [x] baila.cz - v1.0.0
 - [x] palmknihy - v1.0.0
-- [ ] xtr ??
-- [ ] nkp ??
 
 ##Detailní funkènost
 ### Vše
