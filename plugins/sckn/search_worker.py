@@ -12,7 +12,6 @@ from calibre.utils.cleantext import clean_ascii_chars
 from lxml.html import fromstring
 from lxml import etree
 from log import Log #REPLACE from calibre_plugins.sckn.log import Log
-import re
 
 #Single Thread to process one page of search page
 class SearchWorker(Thread):
