@@ -43,17 +43,16 @@ class Worker(Thread):
         self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
-        self.xpath_title = self.XPath('//x:span[@itemprop="name"]/text()')
-        self.xpath_authors = self.XPath('//x:a[@itemprop="author"]/x:strong/text()')
-        self.xpath_comments = self.XPath('//x:div[@id="annotation"]/text()')
-        self.xpath_stars = self.XPath('//x:span[@id="book_rating_text"]/text()')
-        self.xpath_isbn = self.XPath('//x:span[@itemprop="isbn"]/text()')
-        self.xpath_publisher = self.XPath('//x:span[@itemprop="isbn"]/preceding-sibling::text()')
-        self.xpath_tags = self.XPath('//x:td[@class="v_top"]/x:strong[2]/text()')
-        self.xpath_serie_condition = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:legend/text()')
-        self.xpath_serie = self.XPath('//x:div[@id="right"]/x:fieldset[1]/x:div/x:strong/text()')
-        self.xpath_serie_index = self.XPath('//x:div[@id="right"]/x:fieldset[1]//x:div[@class="right_book"]/x:a/@href')
-        self.xpath_cover = self.XPath('//x:td[@id="book_covers"]//x:img/@src')
+        self.xpath_title = self.XPath('//span[@itemprop="name"]/text()')
+        self.xpath_authors = self.XPath('//a[@itemprop="author"]/text()')
+        self.xpath_comments = self.XPath('//div[@id="book_description"]/text()')
+        self.xpath_stars = self.XPath('//div[@id="book_rating"]/text()')
+        self.xpath_isbn = self.XPath('//div[@id="book_releases"]//tr/td[2]/text()')
+        self.xpath_publisher = self.XPath('//div[@id="book_releases"]//tr/td[1]/text()')
+        self.xpath_tags = self.XPath('//div[@id="book_kinds"]//span/text()')
+        self.xpath_serie = self.XPath('//div[@id="book_right_serie"]/h4/text()')
+        self.xpath_serie_index = self.XPath('//div[@id="book_right_serie"]/ul/li[@class="list_0"]')
+        self.xpath_cover = self.XPath('//div[@id="book_covers_control"]/@onclick')
 
     def run(self):
         self.initXPath()
@@ -81,7 +80,7 @@ class Worker(Thread):
         isbn = self.parse_isbn(xml_detail)
         publisher, pub_year = self.parse_publisher(xml_detail)
         tags = self.parse_tags(xml_detail)
-        serie, serie_index = self.parse_serie(xml_detail)
+        serie, serie_index = self.parse_serie(xml_detail, title)
         cover = self.parse_cover(xml_detail)
 
         if title is not None and authors is not None:
@@ -137,7 +136,7 @@ class Worker(Thread):
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
-            stars_ = int(tmp[0].replace(' %',''))
+            stars_ = int(tmp[0].replace('%',''))
             rating = float(stars_ / 20)
             self.log('Found rating:%s'%rating)
             return rating
@@ -148,25 +147,21 @@ class Worker(Thread):
     def parse_isbn(self, xml_detail):
         tmp = self.xpath_isbn(xml_detail)
         if len(tmp) > 0:
-            self.log('Found ISBN:%s'%tmp[0])
-            return tmp[0]
+            self.log('Found ISBN:%s'%tmp[0].strip())
+            return tmp[0].strip()
         else:
             self.log('Found ISBN:None')
             return None
 
-    def parse_publisher(self, xml_more_info):
-        tmp = self.xpath_publisher(xml_more_info)
+    def parse_publisher(self, xml_detail):
+        tmp = self.xpath_publisher(xml_detail)
         if len(tmp) > 0:
-            data = tmp[-2].strip().split(' - ')
+            data = tmp[0].strip().split('\n')
             if len(data) == 2:
                 self.log('Found publisher:%s'%data[0])
-                dt = int(data[1])
-                if dt > 0:
-                    self.log('Found pub date:%s'%data[1])
-                    data[1] = self.prepare_date(dt)
-                else:
-                    data[1] = None
-                    self.log('Found pub date:None')
+                date_string = re.search('(\d+)',data[1]).group(0)
+                self.log('Found pub date:%s'%date_string)
+                data[1] = self.prepare_date(int(date_string))
                 return data
 
         self.log('Found publisher:None')
@@ -183,12 +178,7 @@ class Worker(Thread):
             self.log('Found tags:None')
             return None
 
-    def parse_serie(self, xml_detail):
-        tmp = self.xpath_serie_condition(xml_detail)
-        if len(tmp) == 0 or not tmp[0] == 'Série':
-            self.log('Found serie:None')
-            return [None, None]
-
+    def parse_serie(self, xml_detail, title):
         tmp = self.xpath_serie(xml_detail)
         if len(tmp) == 0:
             self.log('Found serie:None')
@@ -196,13 +186,10 @@ class Worker(Thread):
         else:
             index = 0
             if self.plugin.prefs['serie_index']:
-                tmp_index = self.xpath_serie_index(xml_detail)
-                if len(tmp_index) > 0:
-                    for i, url in enumerate(tmp_index):
-                        tmp_ident = int(url.split('-')[1])
-                        if tmp_ident == self.number:
-                            index = i + 1
-                            break
+                tag_list = self.xpath_serie_index(xml_detail)
+                for tag in tag_list:
+                    if tag.find('.//a').text == title:
+                        index = int(re.search('(\d+)', tag.find('span').text.strip()).group(0))
 
             self.log('Found serie:%s[%i]'%(tmp[0],index))
             return [tmp[0], index]
@@ -211,9 +198,13 @@ class Worker(Thread):
         tmp = self.xpath_cover(xml_detail)
         result = []
         if len(tmp) > 0:
-            for cover in tmp:
-                ident = cover.split("=")[-1]
-                result.append('http://www.cbdb.cz/books/%s.jpg'%ident)
+            nums = re.findall('\d+', tmp[0])
+            ident = int(nums[0])
+            num_add = int(nums[1])
+            result.append(self.plugin.BASE_URL + 'books/%i.jpg'%ident)
+            for n in range(1,num_add):
+                result.append(self.plugin.BASE_URL + 'books/%i_%i.jpg'%(ident, n))
+
         if len(result) > 0:
             self.log('Found covers:%s'%result)
         else:
@@ -226,12 +217,10 @@ class Worker(Thread):
         try:
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
-
-            #fix, time limited action, broke HTML
-            data = re.sub("ledna!</a></span>", b"ledna!</a>", data)
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(data)
-            xml = fromstring(clean,  parser=parser)
+            parser = etree.HTMLParser(recover=True)
+            raw = data.decode('utf-8', errors='replace')
+            clean = clean_ascii_chars(raw)
+            xml = fromstring(clean, parser=parser)
             return xml
         except Exception as e:
             self.log.exception('Failed to make download : %r'%query)

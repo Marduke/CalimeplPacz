@@ -160,7 +160,7 @@ class Cbdb(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        entry = XPath('//x:div[@class="content_box_content"]/x:table[1]/x:tr')
+        entry = XPath('//table[@class="search_graphic"][1]')
         detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
 
         query = self.create_query(title=title, authors=authors,
@@ -173,16 +173,23 @@ class Cbdb(Source):
         try:
             self.log('download page search %s'%query)
             raw = br.open(query, timeout=timeout).read().strip()
-            #fix, time limited action, broke HTML
-            raw = re.sub("ledna!</a></span>", b"ledna!</a>", raw)
+
+            def fixHtml(obj):
+                return obj.group().replace('&','&amp;')
+
+            raw = re.sub('&.{3}[^;]',  fixHtml,  raw)
+            raw = raw.decode('utf-8', errors='replace')
+            self.log.filelog(raw, 'D:\\tmp\\cbdb.html')
         except Exception as e:
             self.log.exception('Failed to make identify query: %r'%query)
             return as_unicode(e)
 
         try:
-            parser = etree.XMLParser(recover=True)
+            parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(raw)
             feed = fromstring(clean, parser=parser)
+#             for error in parser.error_log:
+#                 self.log(error.message)
 
             entries = entry(feed)
             if len(entries) == 0:
@@ -192,24 +199,26 @@ class Cbdb(Source):
                     found.append(ident)
             else:
                 self.log('Found %i matches'%len(entries))
+                #self.log('Matches %s'%(entries))
                 act_authors = []
                 for act in authors:
                     act_authors.append(act.split(" ")[-1])
 
-                ident_found = False
+#                ident_found = False
                 tmp_entries = []
                 for book_ref in entries:
-                    tmp = book_ref.xpath(".//x:a", namespaces=self.NAMESPACES)
+                    title_tag = book_ref.xpath(".//a[not(@class)]", namespaces=self.NAMESPACES)[0]
                     auths = [] #authors surnames
-                    for i in (tmp[1:]):
+                    authors_tag = book_ref.xpath(".//a[@class='search_author_link']", namespaces=self.NAMESPACES)
+                    for i in (authors_tag):
                         auths.append(i.text.split(" ")[-1])
-                    add = (tmp[0].get('href'), tmp[0].text.split("(")[0].strip(), auths)
-                    if tmp[0].get('href').split('-')[1] == ident:
-                        ident_found = True
+                    add = (title_tag.get('href'), title_tag.text.strip(), auths)
+#                    if tmp[0].get('href').split('-')[1] == ident:
+#                        ident_found = True
                     tmp_entries.append(add)
 
-                if not ident_found and ident is not None:
-                    tmp_entries.append(["-%i"%ident, title, authors],)
+                #if not ident_found and ident is not None:
+                #   tmp_entries.append(["-%i"%ident, title, authors],)
 
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
@@ -265,8 +274,8 @@ class Cbdb(Source):
             q = q.encode('utf-8')
         if not q:
             return None
-        return self.BASE_URL+'hledat.php?'+urlencode({
-            'hledat':q
+        return self.BASE_URL+'hledat?'+urlencode({
+            'text':q
         })
 
     def get_cached_cover_url(self, identifiers):
@@ -383,11 +392,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
 #             )
 #            ,
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #edice
-#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-#                 [title_test('Zlodějka knih', exact=False)]
-#             )
+            (
+                {'identifiers':{'bookfan1': '83502'}, #edice
+                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+                [title_test('Zlodějka knih', exact=False)]
+            )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #serie
@@ -407,9 +416,15 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
-            )
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+#                 [title_test('Vlk', exact=False)]
+#             )
+#             ,
+#             (
+#                 {'identifiers':{}, #more covers
+#                 'title': 'Duna', 'authors':['Frank Herbert']},
+#                 [title_test('Duna', exact=False)]
+#             )
         ])
