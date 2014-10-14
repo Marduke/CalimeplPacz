@@ -45,7 +45,7 @@ class Cbdb(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 0)
+    version = (1, 0, 1)
 
     '''
     A short string describing what this plugin does
@@ -161,7 +161,7 @@ class Cbdb(Source):
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         entry = XPath('//table[@class="search_graphic"][1]')
-        detail_test = XPath('//x:a[starts-with(@href, "seznam-oblibene-")]/@href')
+        detail_test = XPath('//td[@id="book_photo"]/img/@src')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -194,7 +194,8 @@ class Cbdb(Source):
             entries = entry(feed)
             if len(entries) == 0:
                 xml = feed
-                detail_ident = detail_test(feed)[0].split("-")[-1]
+                detail_detect = detail_test(feed)[0]
+                detail_ident = int(re.findall('\d+', detail_detect)[0])
                 if ident is not None and detail_ident != ident:
                     found.append(ident)
             else:
@@ -386,17 +387,23 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Cbdb.name,
         [
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #basic
-#                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-#                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-#             )
-#            ,
             (
-                {'identifiers':{'bookfan1': '83502'}, #edice
-                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-                [title_test('Zlodějka knih', exact=False)]
+                {'identifiers':{'bookfan1': '83502'}, #redirect to book without search page
+                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
             )
+#            ,
+#             (
+#                 {'identifiers':{}, #more covers
+#                 'title': 'Duna', 'authors':['Frank Herbert']},
+#                 [title_test('Duna', exact=False)]
+#             )
+#             ,
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #edice
+#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                 [title_test('Zlodějka knih', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #serie

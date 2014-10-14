@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:ai
 from __future__ import (unicode_literals, division, absolute_import, print_function)
+from locale import str
 
 __license__   = 'GPL v3'
 __copyright__ = '2014, MarDuke <marduke@centrum.cz>'
@@ -15,6 +16,8 @@ from lxml.html import fromstring
 from functools import partial
 from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
 import datetime, re
+
+from calibre.utils.icu import lower
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -43,9 +46,9 @@ class Worker(Thread):
         self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
-        self.xpath_title = self.XPath('//span[@itemprop="name"]/text()')
+        self.xpath_title = self.XPath('//span[@itemprop="name"]')
         self.xpath_authors = self.XPath('//a[@itemprop="author"]/text()')
-        self.xpath_comments = self.XPath('//div[@id="book_description"]/text()')
+        self.xpath_comments = self.XPath('//div[@id="book_description"]')
         self.xpath_stars = self.XPath('//div[@id="book_rating"]/text()')
         self.xpath_isbn = self.XPath('//div[@id="book_releases"]//tr/td[2]/text()')
         self.xpath_publisher = self.XPath('//div[@id="book_releases"]//tr/td[1]/text()')
@@ -107,8 +110,9 @@ class Worker(Thread):
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
-            self.log('Found title:%s'%tmp[0])
-            return tmp[0]
+            res = tmp[0].text
+            self.log('Found title:%s'%res)
+            return res
         else:
             self.log('Found title:None')
             return None
@@ -126,8 +130,9 @@ class Worker(Thread):
         tmp = self.xpath_comments(xml_detail)
 
         if len(tmp) > 0:
-            result = "".join(tmp).strip()
+            result = "".join(tmp[0].text).strip()
             self.log('Found comment:%s'%result)
+
             return result
         else:
             self.log('Found comment:None')
@@ -202,7 +207,12 @@ class Worker(Thread):
             ident = int(nums[0])
             num_add = int(nums[1])
             result.append(self.plugin.BASE_URL + 'books/%i.jpg'%ident)
-            for n in range(1,num_add):
+            cnt = num_add
+            covers = self.plugin.prefs['max_covers']
+            if covers:
+                if cnt > covers:
+                    cnt = covers
+            for n in range(1,cnt):
                 result.append(self.plugin.BASE_URL + 'books/%i_%i.jpg'%(ident, n))
 
         if len(result) > 0:
@@ -218,9 +228,12 @@ class Worker(Thread):
             self.log('download page detail %s'%query)
             data = br.open(query, timeout=self.timeout).read().strip()
             parser = etree.HTMLParser(recover=True)
-            raw = data.decode('utf-8', errors='replace')
-            clean = clean_ascii_chars(raw)
+            clean = clean_ascii_chars(data)
+            self.log.filelog(clean, 'D:\\tmp\\file' + self.ident +'.html')
+            self.log(clean)
             xml = fromstring(clean, parser=parser)
+#             for error in parser.error_log:
+#                 self.log(error.message)
             return xml
         except Exception as e:
             self.log.exception('Failed to make download : %r'%query)
