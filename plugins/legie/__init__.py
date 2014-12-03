@@ -45,7 +45,7 @@ class Legie(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 0)
+    version = (1, 0, 1)
 
     '''
     A short string describing what this plugin does
@@ -358,7 +358,7 @@ class Legie(Source):
         '''
         ident = identifiers.get(self.name, None)
         if ident:
-            return (self.name, ident, "%skniha-%s"%(self.BASE_URL,ident))
+            return (self.name, ident, "%s%s"%(self.BASE_URL,ident))
         else:
             return None
 
@@ -426,11 +426,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Meč osudu', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{}, #short story
-                'title': 'Růže pro Algernon', 'authors':['Daniel Keyes']},
-                [title_test('Růže pro Algernon', exact=False)]
-            )
+#             (
+#                 {'identifiers':{}, #short story
+#                 'title': 'Růže pro Algernon', 'authors':['Daniel Keyes']},
+#                 [title_test('Růže pro Algernon', exact=False)]
+#             )
 #             ,
 #             (
 #                 {'identifiers':{}, #short story
@@ -443,4 +443,9 @@ if __name__ == '__main__': # tests
 #                 'title': 'Lovci kostí', 'authors':['Steven Erikson']},
 #                 [title_test('Lovci kostí', exact=False)]
 #             )
+            (
+                {'identifiers':{}, #short story
+                'title': 'Ve službách klanu', 'authors':['Miroslav Žamboch']},
+                [title_test('Ve službách klanu', exact=False)]
+            )
         ])

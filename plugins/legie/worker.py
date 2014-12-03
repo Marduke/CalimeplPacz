@@ -18,6 +18,8 @@ from UserString import MutableString
 from log import Log #REPLACE from calibre_plugins.legie.log import Log
 import datetime
 
+from calibre.utils.icu import lower
+
 #Single Thread to process one page of searched list
 class Worker(Thread):
 
@@ -49,7 +51,8 @@ class Worker(Thread):
         self.xpath_isbn = self.XPath('//x:div[@class="vydani cl"]//x:span[starts-with(@title, "ISBN")]/following::text()')
         self.xpath_publisher = self.XPath('//x:div[@class="data_vydani"]//x:a[starts-with(@href, "vydavatel/")]/text()')
         self.xpath_pub_date = self.XPath('//x:div[@class="data_vydani"]/x:table/x:tbody/x:tr/x:td[starts-with(text(), "přibl")]/text()')
-        self.xpath_tags = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "tagy/")]/text()')
+        #self.xpath_tags = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "tagy/")]/text()')
+        self.xpath_tags = self.XPath('//x:a[starts-with(@href, "tagy/")]/text()')
         self.xpath_serie = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/text()')
         self.xpath_serie_index = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/following-sibling::text()[1]')
         self.xpath_cover = self.XPath('//x:div[@id="vycet_vydani"]//x:img[@class="obalk"]/@src')
@@ -110,8 +113,9 @@ class Worker(Thread):
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
-            self.log('Found title:%s'%tmp[0])
-            return tmp[0]
+            title = unicode(tmp[0])
+            self.log('Found title:%s'%title)
+            return title
         else:
             tmp = self.xpath_title_story(xml_detail)
             if len(tmp) > 0:
@@ -124,7 +128,11 @@ class Worker(Thread):
         tmp = self.xpath_authors(xml_detail)
         if len(tmp) > 0:
             self.log('Found authors:%s'%tmp)
-            return tmp
+            auths = []
+            for author in tmp:
+                auths.append(unicode(author))
+
+            return auths
         else:
             self.log('Found authors:None')
             return None
