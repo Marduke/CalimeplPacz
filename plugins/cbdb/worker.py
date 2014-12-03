@@ -17,8 +17,6 @@ from functools import partial
 from log import Log #REPLACE from calibre_plugins.cbdb.log import Log
 import datetime, re
 
-from calibre.utils.icu import lower
-
 #Single Thread to process one page of searched list
 class Worker(Thread):
 
@@ -121,7 +119,11 @@ class Worker(Thread):
         tmp = self.xpath_authors(xml_detail)
         if len(tmp) > 0:
             self.log('Found authors:%s'%tmp)
-            return tmp
+            auths = []
+            for author in tmp:
+                auths.append(unicode(author))
+
+            return auths
         else:
             self.log('Found authors:None')
             return None
@@ -230,7 +232,6 @@ class Worker(Thread):
             parser = etree.HTMLParser(recover=True)
             clean = clean_ascii_chars(data)
             self.log.filelog(clean, 'D:\\tmp\\file' + self.ident +'.html')
-            self.log(clean)
             xml = fromstring(clean, parser=parser)
 #             for error in parser.error_log:
 #                 self.log(error.message)

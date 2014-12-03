@@ -45,7 +45,7 @@ class Cbdb(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 1)
+    version = (1, 0, 2)
 
     '''
     A short string describing what this plugin does
@@ -387,11 +387,11 @@ if __name__ == '__main__': # tests
             title_test, authors_test, series_test)
     test_identify_plugin(Cbdb.name,
         [
-            (
-                {'identifiers':{'bookfan1': '83502'}, #redirect to book without search page
-                'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-                [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-            )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #redirect to book without search page
+#                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+#                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{}, #more covers
@@ -399,11 +399,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Duna', exact=False)]
 #             )
 #             ,
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #edice
-#                 'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-#                 [title_test('Zlodějka knih', exact=False)]
-#             )
+            (
+                {'identifiers':{'bookfan1': '83502'}, #edice
+                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+                [title_test('Zlodějka knih', exact=False)]
+            )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #serie
