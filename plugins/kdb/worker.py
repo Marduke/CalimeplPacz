@@ -104,7 +104,7 @@ class Worker(Thread):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
             self.log('Found title:%s'%tmp[0])
-            return tmp[0]
+            return unicode(tmp[0])
         else:
             self.log('Found title:None')
             return None

@@ -29,10 +29,10 @@ Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z
 
 ##Plan:
 - [x] Databazeknih.cz - v1.0.0
-- [x] cbdb.cz - v1.0.0
+- [x] cbdb.cz - v1.0.2
 - [x] onlineknihovna.cz - v1.0.0
-- [x] legie.cz - v1.0.0
-- [x] kdb.cz - v1.0.0
+- [x] legie.cz - v1.0.1
+- [x] kdb.cz - v1.0.1
 - [x] pitaval.cz - v1.0.0
 - [x] baila.cz - v1.0.0
 - [x] palmknihy - v1.0.0
