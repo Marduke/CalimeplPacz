@@ -96,4 +96,4 @@ Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z
 - obrázky 40x61 - ignorovány
 
 # Download
-3.12.2014 - http://uloz.to/xGCPPJxF/plugins-zip
+24.2.2015 - http://uloz.to/xcC1hqkU/plugins-zip
