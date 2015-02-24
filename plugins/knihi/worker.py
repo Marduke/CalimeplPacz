@@ -90,7 +90,7 @@ class Worker(Thread):
         tmp = xml_detail.xpath(self.xpath_title)
         if len(tmp) > 0:
             self.log('Found title:%s'%tmp[0].strip())
-            return tmp[0].strip()
+            return unicode(tmp[0].strip())
         else:
             self.log('Found title:None')
             return None
@@ -99,7 +99,10 @@ class Worker(Thread):
         tmp = xml_detail.xpath(self.xpath_authors)
         if len(tmp) > 0:
             self.log('Found authors:%s'%tmp)
-            return tmp
+            auths = []
+            for author in tmp:
+                auths.append(unicode(author))
+            return auths
         else:
             self.log('Found authors:None')
             return None

@@ -46,7 +46,7 @@ class Knihi(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 0)
+    version = (1, 0, 1)
 
     '''
     A short string describing what this plugin does
