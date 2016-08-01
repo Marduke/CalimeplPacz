@@ -44,7 +44,7 @@ class Dbknih(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 0)
+    version = (1, 0, 1)
 
     '''
     A short string describing what this plugin does
@@ -229,8 +229,8 @@ class Dbknih(Source):
                 if url == ident:
                     ident_found = True
                 name = children[2].text
-                authors = children[3].getchildren()[1].tail
-                authors = authors.replace(" ,...", "").strip()
+                authors = children[4].text.replace(" ,...", "").strip().split(",")[1:]
+                authors = ",".join(authors).strip()
                 add = [url, name, authors]
                 found.append(add)
 
@@ -445,10 +445,14 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-            (
+           (
                 {'identifiers':{}, #short story
                 'title': 'Vlk', 'authors':['Eric Eliot Knight']},
                 [title_test('Vlk', exact=False)]
             )
-
+#           (
+#                {'identifiers':{}, #bug
+#                'title': '2001: Vesmírná odysea', 'authors':['Arthur C. Clarke']},
+#                [title_test('2001: Vesmírná odysea', exact=False)]
+#            )
         ])

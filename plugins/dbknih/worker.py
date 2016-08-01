@@ -15,7 +15,7 @@ from lxml.html import fromstring
 from functools import partial
 from UserString import MutableString
 from log import Log #REPLACE from calibre_plugins.dbknih.log import Log
-import datetime
+import datetime, re
 
 #Single Thread to process one page of searched list
 class Worker(Thread):
@@ -39,22 +39,22 @@ class Worker(Thread):
         self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
-        self.xpath_title = self.XPath('//x:h1[contains(@class,"name")]/text()')
-        self.xpath_authors = self.XPath('//x:h2[@class="jmenaautoru"]/x:a/@title')
+        self.xpath_title = self.XPath('//x:h1[@itemprop="name"]/text()')
+        self.xpath_authors = self.XPath('//x:h2[@itemprop="author"]/x:a/text()')
         self.xpath_comments = self.XPath('//x:p[@id="biall"]')
         self.xpath_books_contains = self.XPath('//x:a[@class="h2" and starts-with(@href,"knihy/")]/text()')
         self.xpath_short_stories_url = self.XPath('//x:a[starts-with(@href, "povidky-z-knihy/")]/@href')
         self.xpath_short_stories_list = self.XPath('//x:table//x:a/@title')
         self.xpath_stars = self.XPath('//x:a[@class="bpoints"]/text()')
-        self.xpath_isbn = self.XPath('//strong[last()]/span/text()')
-        self.xpath_publisher = self.XPath('//span[@itemprop="brand"]/a/text()')
-        self.xpath_tags = self.XPath('//x:span[@itemprop="category"]/text()')
-        self.xpath_site_tags = self.XPath('//x:p[@class="binfo"][2]/x:a/@title')
-        self.xpath_edition = self.XPath('//a[starts-with(@href, "edice/")]/text()')
-        self.xpath_serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]')
-        self.xpath_serie_index = self.XPath('//x:a[@class="strong" and @href="%s"]/following-sibling::x:em[2]/x:strong/text()'%self.ident)
-        self.xpath_pub_year_act = self.XPath('//x:p[@class="binfo odtop"]/x:strong[2]/text()')
-        self.xpath_pub_year_first = self.XPath('//strong[1]/text()')
+        self.xpath_isbn = self.XPath('//span[@itemprop="isbn"]/text()')
+        self.xpath_publisher = self.XPath('//td[@itemprop="publisher"]/a/text()')
+        self.xpath_tags = self.XPath('//x:h5[@itemprop="category"]/x:a/text()')
+        self.xpath_site_tags = self.XPath('//x:a[starts-with(@href, "stitky/")]/text()')
+        self.xpath_edition = self.XPath('//x:a[starts-with(@href, "edice/")]/text()')
+        self.xpath_serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]/text()')
+        self.xpath_serie_index = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]/following-sibling::x:em/text()')
+        self.xpath_pub_year_act = self.XPath('//x:span[@itemprop="datePublished"]/text()')
+        self.xpath_pub_year_first = self.XPath('/x:span[@itemprop="datePublished"]/following-sibling::strong[1]/text()')
         self.xpath_cover = self.XPath('//x:img[@class="kniha_img"]/@src')
 
 
@@ -109,7 +109,7 @@ class Worker(Thread):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
             self.log('Found title:%s'%tmp[0])
-            return tmp[0]
+            return unicode(tmp[0])
         else:
             self.log('Found title:None')
             return None
@@ -117,8 +117,11 @@ class Worker(Thread):
     def parse_authors(self, xml_detail):
         tmp = self.xpath_authors(xml_detail)
         if len(tmp) > 0:
-            self.log('Found authors:%s'%tmp)
-            return tmp
+            result = []
+            for author in tmp:
+                result.append(unicode(author))
+            self.log('Found authors:%s'%result)
+            return result
         else:
             self.log('Found authors:None')
             return None
@@ -156,7 +159,7 @@ class Worker(Thread):
 
         if len(result) > 0:
             self.log('Found comment with addings:%s'%result)
-            return result
+            return unicode(result)
         else:
             self.log('Found comment:None')
             return None
@@ -175,8 +178,11 @@ class Worker(Thread):
     def parse_isbn(self, xml_more_info):
         tmp = self.xpath_isbn(xml_more_info)
         if len(tmp) > 0:
-            self.log('Found ISBN:%s'%tmp[0])
-            return tmp[0]
+            isbn = tmp[0]
+            if "," in isbn:
+              isbn = isbn.split(',')[0]
+            self.log('Found ISBN:%s'%isbn)
+            return unicode(isbn)
         else:
             self.log('Found ISBN:None')
             return None
@@ -185,7 +191,7 @@ class Worker(Thread):
         tmp = self.xpath_publisher(xml_more_info)
         if len(tmp) > 0:
             self.log('Found publisher:%s'%tmp[0])
-            return tmp[0]
+            return unicode(tmp[0])
         else:
             self.log('Found publisher:None')
             return None
@@ -195,47 +201,46 @@ class Worker(Thread):
 
         tmp = self.xpath_tags(xml_detail)
         if len(tmp) > 0:
-            result.extend(tmp[0].split(' - '))
-            if self.plugin.prefs['parse_tags']:
-                tmp2 = self.xpath_site_tags(xml_more_info)
-                if len(tmp2) > 0:
-                    result.extend(tmp2)
+            for tag in tmp:
+              result.append(unicode(tag))
+        if self.plugin.prefs['parse_tags']:
+            tmp2 = self.xpath_site_tags(xml_detail)
+            if len(tmp2) > 0:
+                for tag in tmp2:
+                  result.append(unicode(tag))
 
         if self.plugin.prefs['short_story']:
             if self.ident.startswith('povidky/'):
-                result.append('Povídka')
+                result.append(u'Povídka')
 
         if self.plugin.prefs['short_story_collection']:
             tmp = self.xpath_short_stories_url(xml_detail)
             if len(tmp) > 0:
-                result.append('Sbírka povídek')
+                result.append(u'Sbírka povídek')
 
         if self.plugin.prefs['edition']:
             tmp = self.xpath_edition(xml_more_info)
             if len(tmp) > 0:
-                result.append(self.plugin.prefs['edition_prefix']+tmp[0])
+                result.append(unicode(self.plugin.prefs['edition_prefix']+tmp[0]))
 
         self.log('Found tags:%s'%result)
         return result
 
     def parse_serie(self, xml_detail):
         tmp = self.xpath_serie(xml_detail)
-
+        
         if len(tmp) == 0:
             self.log('Found serie:None')
             return [None, None]
 
-        xml_serie_index = self.download_serie_index(tmp[0].get('href'))
-        if self.xpath_serie_index:
-            tmp_index = self.xpath_serie_index(xml_serie_index)
-            if len(tmp_index) > 0:
-                self.log('Found serie:%s[%s]'%(tmp[0].text,tmp_index[0]))
-                return [tmp[0], tmp_index[0]]
-            else:
-                self.log('Found serie:%s[None]'%tmp[0].text)
-                return [tmp[0], None]
+        serie_index = self.xpath_serie_index(xml_detail)
+        if len(serie_index) > 0:
+            index = re.sub('[,.() ]', '', serie_index[0])
+            self.log('Found serie:%s[%s]'%(tmp[0], index))
+            return [unicode(tmp[0]), index]
         else:
-            return [tmp[0], None]
+            self.log('Found serie:%s'%tmp[0])
+            return [unicode(tmp[0]), None]
 
     def parse_pub_year(self, xml_detail, xml_more_info):
         if self.plugin.prefs['pub_date'] == 'Poslední datum vydání':
@@ -300,19 +305,6 @@ class Worker(Thread):
             return xml
         except Exception as e:
             self.log.exception('Failed to make download : %r'%query_short_stories)
-            return None
-
-    def download_serie_index(self, url):
-        query_serie = self.plugin.BASE_URL + url
-        try:
-            self.log('download page with serie %s'%query_serie)
-            data = self.browser.open(query_serie, timeout=self.timeout).read().strip()
-            parser = etree.XMLParser(recover=True)
-            clean = clean_ascii_chars(data)
-            xml = fromstring(clean,  parser=parser)
-            return xml
-        except Exception as e:
-            self.log.exception('Failed to make download : %r'%query_serie)
             return None
 
     def prepare_date(self,year):
