@@ -40,19 +40,19 @@ class Worker(Thread):
 
     def initXPath(self):
         self.xpath_title = self.XPath('//x:h1[@itemprop="name"]/text()')
-        self.xpath_authors = self.XPath('//x:h2[@itemprop="author"]/x:a/text()')
-        self.xpath_comments = self.XPath('//x:p[@id="biall"]')
+        self.xpath_authors = self.XPath('//x:span[@itemprop="author"]/x:a/text()')
+        self.xpath_comments = self.XPath('//x:p[@id="bdetdesc"]//x:span')
         self.xpath_books_contains = self.XPath('//x:a[@class="h2" and starts-with(@href,"knihy/")]/text()')
         self.xpath_short_stories_url = self.XPath('//x:a[starts-with(@href, "povidky-z-knihy/")]/@href')
-        self.xpath_short_stories_list = self.XPath('//x:table//x:a/@title')
+        self.xpath_short_stories_list = self.XPath('//x:table[@class="new morpad"]//x:a/@title')
         self.xpath_stars = self.XPath('//x:a[@class="bpoints"]/text()')
         self.xpath_isbn = self.XPath('//span[@itemprop="isbn"]/text()')
-        self.xpath_publisher = self.XPath('//td[@itemprop="publisher"]/a/text()')
+        self.xpath_publisher = self.XPath('//x:span[@itemprop="publisher"]/x:a/text()')
         self.xpath_tags = self.XPath('//x:h5[@itemprop="category"]/x:a/text()')
         self.xpath_site_tags = self.XPath('//x:a[starts-with(@href, "stitky/")]/text()')
-        self.xpath_edition = self.XPath('//x:a[starts-with(@href, "edice/")]/text()')
-        self.xpath_serie = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]/text()')
-        self.xpath_serie_index = self.XPath('//x:a[@class="strong" and starts-with(@href, "serie/")]/following-sibling::x:em/text()')
+        self.xpath_edition = self.XPath('//a[@itemprop="bookEdition"]/text()')
+        self.xpath_serie = self.XPath('//x:a[starts-with(@href, "serie/")]/text()')
+        self.xpath_serie_index = self.XPath('//x:a[starts-with(@href, "serie/")]/following-sibling::x:em/text()')
         self.xpath_pub_year_act = self.XPath('//x:span[@itemprop="datePublished"]/text()')
         self.xpath_pub_year_first = self.XPath('/x:span[@itemprop="datePublished"]/following-sibling::strong[1]/text()')
         self.xpath_cover = self.XPath('//x:img[@class="kniha_img"]/@src')
@@ -78,14 +78,14 @@ class Worker(Thread):
         comments = self.parse_comments(xml_detail)
         rating = self.parse_rating(xml_detail)
         isbn = self.parse_isbn(xml_more_info)
-        publisher = self.parse_publisher(xml_more_info)
+        publisher = self.parse_publisher(xml_detail)
         tags = self.parse_tags(xml_detail, xml_more_info)
         serie, serie_index = self.parse_serie(xml_detail)
         pub_year = self.parse_pub_year(xml_detail, xml_more_info)
         cover = self.parse_cover(xml_detail)
 
         if title is not None and authors is not None:
-            mi = Metadata(title, authors)
+            mi = Metadata(as_unicode(title), authors)
             mi.languages = {'ces'}
             mi.comments = as_unicode(comments)
             mi.identifiers = {self.plugin.name:self.ident}
@@ -103,6 +103,7 @@ class Worker(Thread):
 
             return mi
         else:
+            self.log('Result skipped for because title or authors not found')
             return None
 
     def parse_title(self, xml_detail):

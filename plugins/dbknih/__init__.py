@@ -44,7 +44,7 @@ class Dbknih(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 1)
+    version = (1, 0, 2)
 
     '''
     A short string describing what this plugin does
@@ -414,12 +414,12 @@ if __name__ == '__main__': # tests
     from calibre.ebooks.metadata.sources.test import (test_identify_plugin,
             title_test, authors_test, series_test)
     test_identify_plugin(Dbknih.name,
-        [
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #basic, edice
-#                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
-#                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
-#             )
+        [                                            
+             (
+                 {'identifiers':{'bookfan1': '83502'}, #basic, edice
+                 'title': 'Čarovný svět Henry Kuttnera', 'authors':['Henry Kuttner']},
+                 [title_test('Čarovný svět Henry Kuttnera', exact=False)]
+             )
 #            ,
 #             (
 #                 {'identifiers':{'bookfan1': '83502'}, #server tags
@@ -445,14 +445,19 @@ if __name__ == '__main__': # tests
 #                 [title_test('Dilvermoon', exact=False)]
 #             )
 #             ,
-           (
-                {'identifiers':{}, #short story
-                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
-                [title_test('Vlk', exact=False)]
-            )
+#           (
+#                {'identifiers':{}, #short story
+#                'title': 'Vlk', 'authors':['Eric Eliot Knight']},
+#                [title_test('Vlk', exact=False)]
+#            )
 #           (
 #                {'identifiers':{}, #bug
 #                'title': '2001: Vesmírná odysea', 'authors':['Arthur C. Clarke']},
 #                [title_test('2001: Vesmírná odysea', exact=False)]
+#            )
+#           (
+#                {'identifiers':{}, #short story
+#                'title': 'Kruh', 'authors':['Dave Eggers']},
+#                [title_test('Kruh', exact=False)]
 #            )
         ])
