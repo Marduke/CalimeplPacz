@@ -44,15 +44,16 @@ class Worker(Thread):
         self.log = Log("worker %i"%self.number, log)
 
     def initXPath(self):
-        self.xpath_title = self.XPath('//span[@itemprop="name"]')
+        self.xpath_title = self.XPath('//*[@itemprop="name"]/text()')
         self.xpath_authors = self.XPath('//a[@itemprop="author"]/text()')
-        self.xpath_comments = self.XPath('//div[@id="book_description"]')
-        self.xpath_stars = self.XPath('//div[@id="book_rating"]/text()')
-        self.xpath_isbn = self.XPath('//div[@id="book_releases"]//tr/td[2]/text()')
-        self.xpath_publisher = self.XPath('//div[@id="book_releases"]//tr/td[1]/text()')
-        self.xpath_tags = self.XPath('//div[@id="book_kinds"]//span/text()')
-        self.xpath_serie = self.XPath('//div[@id="book_right_serie"]/h4/text()')
-        self.xpath_serie_index = self.XPath('//div[@id="book_right_serie"]/ul/li[@class="list_0"]')
+        self.xpath_comments = self.XPath('//p[@itemprop="about"]')
+        self.xpath_rating = self.XPath('//div[@id="item_rating"]/text()')
+        self.xpath_isbn = self.XPath('//span[@itemprop="isbn"]/text()')
+        self.xpath_publisher = self.XPath('//div[@class="book_info_line"]/a[starts-with(@href, "nakladatelstvi-")]/text()')
+        self.xpath_pub_date = self.XPath('//div[@class="book_info_line"]/a[starts-with(@href, "nakladatelstvi-")]/following-sibling::text()[1]')
+        self.xpath_tags = self.XPath('//span[@itemprop="genre"]/text()')
+        self.xpath_serie = self.XPath('//a[@href="?show=serie"]/text()')
+        self.xpath_serie_index = self.XPath('//a[@href="?show=serie"]/preceding-sibling::text()')
         self.xpath_cover = self.XPath('//div[@id="book_covers_control"]/@onclick')
 
     def run(self):
@@ -103,12 +104,13 @@ class Worker(Thread):
 
             return mi
         else:
+            self.log('Result skipped for because title or authors not found')
             return None
 
     def parse_title(self, xml_detail):
         tmp = self.xpath_title(xml_detail)
         if len(tmp) > 0:
-            res = tmp[0].text
+            res = unicode(tmp[0])
             self.log('Found title:%s'%res)
             return res
         else:
@@ -132,7 +134,8 @@ class Worker(Thread):
         tmp = self.xpath_comments(xml_detail)
 
         if len(tmp) > 0:
-            result = "".join(tmp[0].text).strip()
+            #result = "".join(tmp[0].text).strip()
+            result = unicode(tmp[0].text).strip()
             self.log('Found comment:%s'%result)
 
             return result
@@ -141,10 +144,9 @@ class Worker(Thread):
             return None
 
     def parse_rating(self, xml_detail):
-        tmp = self.xpath_stars(xml_detail)
+        tmp = self.xpath_rating(xml_detail)
         if len(tmp) > 0:
-            stars_ = int(tmp[0].replace('%',''))
-            rating = float(stars_ / 20)
+            rating = float(int(tmp[0].replace('%','')) / 20)
             self.log('Found rating:%s'%rating)
             return rating
         else:
@@ -162,14 +164,13 @@ class Worker(Thread):
 
     def parse_publisher(self, xml_detail):
         tmp = self.xpath_publisher(xml_detail)
+        tmpDate = self.xpath_pub_date(xml_detail)
         if len(tmp) > 0:
-            data = tmp[0].strip().split('\n')
-            if len(data) == 2:
-                self.log('Found publisher:%s'%data[0])
-                date_string = re.search('(\d+)',data[1]).group(0)
-                self.log('Found pub date:%s'%date_string)
-                data[1] = self.prepare_date(int(date_string))
-                return data
+            publisher = tmp[0]
+            pubDate = self.prepare_date(int(re.search('(\d+)', tmpDate[0]).group(0)))
+            self.log('Found publisher:%s'%publisher)
+            self.log('Found pub date:%s'%pubDate)
+            return [publisher, pubDate]
 
         self.log('Found publisher:None')
         self.log('Found pub date:None')
@@ -178,7 +179,7 @@ class Worker(Thread):
     def parse_tags(self, xml_detail):
         tmp = self.xpath_tags(xml_detail)
         if len(tmp) > 0:
-            result = tmp[0].split(' / ')
+            result = tmp
             self.log('Found tags:%s'%result)
             return result
         else:
@@ -190,16 +191,13 @@ class Worker(Thread):
         if len(tmp) == 0:
             self.log('Found serie:None')
             return [None, None]
-        else:
-            index = 0
-            if self.plugin.prefs['serie_index']:
-                tag_list = self.xpath_serie_index(xml_detail)
-                for tag in tag_list:
-                    if tag.find('.//a').text == title:
-                        index = int(re.search('(\d+)', tag.find('span').text.strip()).group(0))
+        index = 0
+        if self.plugin.prefs['serie_index']:
+            tmpIndex = self.xpath_serie_index(xml_detail)
+            index = int(re.search('(\d+)', tmpIndex[0]).group(0))
 
-            self.log('Found serie:%s[%i]'%(tmp[0],index))
-            return [tmp[0], index]
+        self.log('Found serie:%s[%i]'%(tmp[0],index))
+        return [tmp[0], index]
 
     def parse_cover(self, xml_detail):
         tmp = self.xpath_cover(xml_detail)

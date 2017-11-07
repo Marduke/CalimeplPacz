@@ -45,7 +45,7 @@ class Cbdb(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 2)
+    version = (1, 0, 3)
 
     '''
     A short string describing what this plugin does
@@ -160,7 +160,7 @@ class Cbdb(Source):
         ident = identifiers.get(self.name, None)
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
-        entry = XPath('//table[@class="search_graphic"][1]')
+        entry = XPath('//div[@id="search_result_box_books"]//table[@class="search_graphic"][1]')
         detail_test = XPath('//td[@id="book_photo"]/img/@src')
 
         query = self.create_query(title=title, authors=authors,
@@ -208,18 +208,13 @@ class Cbdb(Source):
 #                ident_found = False
                 tmp_entries = []
                 for book_ref in entries:
-                    title_tag = book_ref.xpath(".//a[not(@class)]", namespaces=self.NAMESPACES)[0]
+                    title_tag = book_ref.xpath(".//div/a[starts-with(@href, 'kniha-')]", namespaces=self.NAMESPACES)
                     auths = [] #authors surnames
                     authors_tag = book_ref.xpath(".//a[@class='search_author_link']", namespaces=self.NAMESPACES)
                     for i in (authors_tag):
                         auths.append(i.text.split(" ")[-1])
-                    add = (title_tag.get('href'), title_tag.text.strip(), auths)
-#                    if tmp[0].get('href').split('-')[1] == ident:
-#                        ident_found = True
+                    add = (title_tag[0].get('href'), title_tag[0].text, auths)
                     tmp_entries.append(add)
-
-                #if not ident_found and ident is not None:
-                #   tmp_entries.append(["-%i"%ident, title, authors],)
 
                 if len(tmp_entries) > self.prefs['max_search']:
                     tmp_entries.sort(key=self.prefilter_compare_gen(title=title, authors=act_authors))
@@ -399,17 +394,17 @@ if __name__ == '__main__': # tests
 #                 [title_test('Duna', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{'bookfan1': '83502'}, #edice
-                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
-                [title_test('Zlodějka knih', exact=False)]
-            )
+#            (
+#                {'identifiers':{'bookfan1': '83502'}, #edice
+#                'title': 'Zlodějka knih', 'authors':['Markus Zusak']},
+#                []#/*title_test('Zlodějka knih', exact=False)]
+#            )
 #            ,
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #serie
-#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-#                 [title_test('Hra o trůny', exact=False)]
-#             )
+             (
+                 {'identifiers':{'bookfan1': '83502'}, #serie
+                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+                 [title_test('Hra o trůny', exact=False)]
+             )
 #            ,
 #             (
 #                 {'identifiers':{}, #short story
