@@ -36,7 +36,7 @@ class Xtr(Source):
     '''
     supported_platforms = ['windows', 'osx', 'linux']
 
-    BASE_URL = 'http://xtrance.info/'
+    BASE_URL = 'https://xtrance.info/'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
@@ -190,17 +190,28 @@ class Xtr(Source):
             return False
         br = self.browser
         try:
-            url = "%snew/?top=1"%self.BASE_URL
+            url = "%snew/"%self.BASE_URL
+            clean = clean_ascii_chars(br.open(url).read().strip())
+            parser = etree.HTMLParser(recover=True)            
+            feed = fromstring(clean, parser=parser)
+            
+            formUrl = feed.xpath('//form[@id="form"]/@action')
+            self.log('formUrl %s'%formUrl[0])
+            
+            url = self.BASE_URL + formUrl[0]
 
             parameters = {
-                "loginsendform":"1",
+                "sendform":"1",
                 "login_name":self.prefs['login'],
                 "login_password":self.prefs['password']
             }
             data = urllib.urlencode(parameters)
+            self.log(url)
+            self.log(data)
             clean = clean_ascii_chars(br.open(url,data).read().strip())
             parser = etree.HTMLParser(recover=True)
             feed = fromstring(clean, parser=parser)
+            self.log(clean)
             return len(feed.xpath('//input[@id="login_name"]/@name')) == 0
         except Exception as e:
             self.log.exception(e)
