@@ -8,10 +8,9 @@ Repository for all great and quality Czech sources of metadata for Calibre
 
 Metadata pluginy pro èeské zdroje pro Calibre
 
-
 P.S.: píšu znova plugin pro Databazeknih.cz, protoe ten pùvodní blbne a navíc neumí co by mohl, a píšu ho s jinım identifikátorem, protoe pro plnou funkènost je potøeba mìnit styl generování id
 
-#Pokud Vám chybí plugin pro nìkterou stánku nebo Vám nìco nefuguje pište do issues nebo na mail marduke@centrum.cz
+# Pokud Vám chybí plugin pro nìkterou stánku nebo Vám nìco nefuguje pište do issues nebo na mail marduke@centrum.cz
 
 # Práce na pluginech
 V roce 2013 jsem sice nìjakı plugin napsal, ale bylo to hodnì narychlo a vısledek se mi po mìsícíh pouívání moc nezamlouval.
@@ -19,15 +18,15 @@ U ostatních pluginù to také nebyla ádná sláva take se rozhodl to všechno zahod
 Kadopádnì chci, aby kadı plugin stahoval co moná nejvíc dat a aby byl rozumnì konfigurovatelnı
 A budu se svojí prací spokojen tak ji pošlu a se stane souèástí Calibre
 
-##Struktura
+## Struktura
 Kadı adresáø pøedstavuje jeden plugin
 Je mono sputit jeho test pøes run.bat
 Jeliko píšu v Pydev tak mi pøi více souborech v pluginu hlásí prostøedí neznámé tøídy. To jsem vyøešil buildovacím scriptem. Take NELZE vzít obsah vybraného adresáøe a zabalit jako Calibre plugin. Musí se spustit build.py/buidl.bat podobnì jak je to v run.bat a poté teplve zabalit. Pluginy také obsahují pomocnou tøídu na vıpisy staenıch dat Devel. Ta se musí pøidat také.
 
-##Hotovo z minula:
+## Hotovo z minula:
 Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z ni inzerentni rozcestnik :-(((
 
-##Plan:
+## Plan:
 - [x] Databazeknih.cz - v1.0.0
 - [x] cbdb.cz - v1.0.2
 - [x] onlineknihovna.cz - v1.0.0
@@ -38,7 +37,7 @@ Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z
 - [x] palmknihy - v1.0.0
 - [x] knihi - v1.0.1
 
-##Detailní funkènost
+## Detailní funkènost
 ### Vše
 - titul
 - autoøi
@@ -94,6 +93,3 @@ Bookfan.eu - stanka mela dlouho vypadky nebo aspon problemy s obrazky, dnes je z
 ### Knihi
 - cca 48 000 knih
 - obrázky 40x61 - ignorovány
-
-# Download
-24.2.2015 - http://uloz.to/xcC1hqkU/plugins-zip
