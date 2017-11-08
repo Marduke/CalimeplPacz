@@ -46,7 +46,7 @@ class Knihi(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 1)
+    version = (1, 0, 2)
 
     '''
     A short string describing what this plugin does
@@ -264,7 +264,7 @@ class Knihi(Source):
             q = q.encode('utf-8')
         if not q:
             return None
-        return self.BASE_URL+'search.php?'+urlencode({
+        return self.BASE_URL+'search2.php?'+urlencode({
             'q':q,
             'zacatek':(number - 1)*10
         })
