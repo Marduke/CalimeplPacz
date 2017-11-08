@@ -412,11 +412,11 @@ if __name__ == '__main__': # tests
 #                 [title_test('Zlodějka knih', exact=False)]
 #             )
 #            ,
-#             (
-#                 {'identifiers':{'bookfan1': '83502'}, #serie
-#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-#                 [title_test('Hra o trůny', exact=False)]
-#             )
+             (
+                 {'identifiers':{'bookfan1': '83502'}, #serie
+                 'title': 'Slavné případy soudce Ti', 'authors':['Robert van Gulik']},
+                 [title_test('Slavné případy soudce Ti', exact=False)]
+             )
 #            ,
 #             (
 #                 {'identifiers':{},
@@ -436,9 +436,9 @@ if __name__ == '__main__': # tests
 #                 [title_test('Tajemství ulice', exact=False)]
 #             )
 #             ,
-            (
-                {'identifiers':{},
-                'title': 'Nevadský plyn', 'authors':['Raymond Chandler']},
-                [title_test('Nevadský plyn', exact=False)]
-            )
+#            (
+#                {'identifiers':{},
+#                'title': 'Nevadský plyn', 'authors':['Raymond Chandler']},
+#                [title_test('Nevadský plyn', exact=False)]
+#            )
 ])

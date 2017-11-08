@@ -45,13 +45,13 @@ class Worker(Thread):
         self.xpath_authors = self.XPath('//x:a[starts-with(@href,"autor/")]/text()')
         self.xpath_comments_serie = self.XPath('//x:div[@id="anotace"]/x:p//text()')
         self.xpath_comments = self.XPath('//x:div[@id="detail"]/x:div[@id="nic"]/x:p//text()')
-        self.xpath_stars = self.XPath('//x:div[@id="procenta"]/text()')
+        self.xpath_stars = self.XPath('//x:span[@itemprop="ratingValue"]/text()')
         self.xpath_isbn = self.XPath('//x:div[@class="vydani cl"]//x:span[starts-with(@title, "ISBN")]/following::text()')
         self.xpath_publisher = self.XPath('//x:div[@class="data_vydani"]//x:a[starts-with(@href, "vydavatel/")]/text()')
         self.xpath_pub_date = self.XPath('//x:div[@class="data_vydani"]/x:table/x:tbody/x:tr/x:td[starts-with(text(), "přibl")]/text()')
-        self.xpath_tags = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "tagy/")]/text()')
-        self.xpath_serie = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/text()')
-        self.xpath_serie_index = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "serie/")]/following-sibling::text()[1]')
+        self.xpath_tags = self.XPath('//x:a[starts-with(@href, "tagy/")]/text()')
+        self.xpath_serie = self.XPath('//x:a[starts-with(@href, "serie/")]/text()')
+        self.xpath_serie_index = self.XPath('//x:a[starts-with(@href, "serie/")]/following-sibling::text()[1]')
         self.xpath_cover = self.XPath('//x:div[@id="vycet_vydani"]//x:img[@class="obalk"]/@src')
         self.xpath_world = self.XPath('//x:div[@id="kniha_info"]//x:a[starts-with(@href, "svet/")]/text()')
         self.xpath_contain_story = self.XPath('//x:div[@id="zarazena_do_knih"]/child::*[text()]')
@@ -160,8 +160,7 @@ class Worker(Thread):
     def parse_rating(self, xml_detail):
         tmp = self.xpath_stars(xml_detail)
         if len(tmp) > 0:
-            stars_ = int(tmp[0].replace('%',''))
-            rating = float(stars_ / 20)
+            rating = int(tmp[0])
             self.log('Found rating:%s'%rating)
             return rating
         else:
