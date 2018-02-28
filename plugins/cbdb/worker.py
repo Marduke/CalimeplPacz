@@ -39,7 +39,10 @@ class Worker(Thread):
         if xml is not None:
             self.number = int(ident)
         else:
-            self.number = int(self.ident.split('-')[1])
+            if ident.startswith('kniha-'):
+                self.number = int(self.ident.split('-')[1])
+            else:
+                self.number = int(ident)
 
         self.log = Log("worker %i"%self.number, log)
 
@@ -222,7 +225,7 @@ class Worker(Thread):
         return result
 
     def download_detail(self):
-        query = self.plugin.BASE_URL + self.ident
+        query = self.plugin.BASE_DETAIL_URL + self.ident
         br = self.browser
         try:
             self.log('download page detail %s'%query)

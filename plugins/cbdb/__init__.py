@@ -36,6 +36,7 @@ class Cbdb(Source):
     supported_platforms = ['windows', 'osx', 'linux']
 
     BASE_URL = 'http://www.cbdb.cz/'
+    BASE_DETAIL_URL = 'http://www.cbdb.cz/kniha-'
 
     '''
     The name of this plugin. You must set it something other than Trivial Plugin for it to work.
@@ -45,7 +46,7 @@ class Cbdb(Source):
     '''
     The version of this plugin as a 3-tuple (major, minor, revision)
     '''
-    version = (1, 0, 3)
+    version = (1, 0, 4)
 
     '''
     A short string describing what this plugin does
@@ -161,7 +162,7 @@ class Cbdb(Source):
 
         XPath = partial(etree.XPath, namespaces=self.NAMESPACES)
         entry = XPath('//div[@id="search_result_box_books"]//table[@class="search_graphic"][1]')
-        detail_test = XPath('//td[@id="book_photo"]/img/@src')
+        detail_test = XPath('//td[@id="book_photo_box"]/img/@src')
 
         query = self.create_query(title=title, authors=authors,
                 identifiers=identifiers)
@@ -400,11 +401,11 @@ if __name__ == '__main__': # tests
 #                []#/*title_test('Zlodějka knih', exact=False)]
 #            )
 #            ,
-             (
-                 {'identifiers':{'bookfan1': '83502'}, #serie
-                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
-                 [title_test('Hra o trůny', exact=False)]
-             )
+#             (
+#                 {'identifiers':{'bookfan1': '83502'}, #serie
+#                 'title': 'Hra o trůny', 'authors':['George Raymond Richard Martin']},
+#                 [title_test('Hra o trůny', exact=False)]
+#             )
 #            ,
 #             (
 #                 {'identifiers':{}, #short story
@@ -429,4 +430,10 @@ if __name__ == '__main__': # tests
 #                 'title': 'Duna', 'authors':['Frank Herbert']},
 #                 [title_test('Duna', exact=False)]
 #             )
+#             ,
+             (
+                 {'identifiers':{'cbdb': '22750'},
+                 'title': 'Dějiny židovského národa', 'authors':['Paul Johnson']},
+                 [title_test('Dějiny židovského národa', exact=False)]
+             )
         ])
